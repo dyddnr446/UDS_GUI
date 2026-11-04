@@ -7,14 +7,13 @@
   기능·비기능·유스케이스 …… requirements.xlsx
   UDS 표 …… uds_catalog.xlsx
   UDS 개념 입문 …… UDS_GUIDE.txt
-  Argon 이력 프롬프트 …… prompts/argon_*.txt  (실행 SSOT 아님)
   그 외 새 txt는 가급적 추가하지 않음
 
 파일
   PROJECT_PLAN.txt           교수 제출용 개요서
   IMPLEMENTATION_SLICES.txt  Slice 1~8 + 13 Micro-Gate 맵
   prompts/steps/             CURRENT.txt + STEP_00~08 + STOP_RECOVERY
-  prompts/argon_*.txt        이력 (단계분할·검수 초안)
+  prompts/ux_phases/         DONE 이후 UX Phase 프롬프트
   UDS_GUIDE.txt              UDS 입문
   requirements.xlsx          FR/NFR/UC/DoD
   uds_catalog.xlsx           서비스·DID·프로필·SymptomDidMap
@@ -25,7 +24,7 @@ Cursor 컨텍스트 규칙 (중요)
     @IMPLEMENTATION_SLICES.txt
     @prompts/steps/CURRENT.txt
     @prompts/steps/<CURRENT Step 파일>  하나만
-  붙이지 말 것: Step 여러 개, Gemini 장문 전체, argon 이력 전부
+  붙이지 말 것: Step 여러 개, Gemini 장문 전체
 
 읽는 순서
   1) PROJECT_PLAN …… 무엇을 만드는지

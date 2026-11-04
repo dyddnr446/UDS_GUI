@@ -7,7 +7,6 @@
 - 게이트 맵: docs/IMPLEMENTATION_SLICES.txt
 - 패키지 배치: docs/PACKAGE_MAP.txt
 - 개요서: docs/PROJECT_PLAN.txt
-- Argon 이력: docs/prompts/argon_*.txt (실행 SSOT 아님)
 - Gemini UX 브리핑/수용: docs/prompts/gemini_*.txt (Micro-Gate SSOT 아님)
 - DONE 이후 UX: docs/UX_USABILITY_BACKLOG.txt
 

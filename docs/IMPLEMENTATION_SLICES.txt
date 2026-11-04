@@ -9,7 +9,6 @@
 - 현재 Step 포인터: docs/prompts/steps/CURRENT.txt
 - 개요서: docs/PROJECT_PLAN.txt
 - 능력/표 SSOT: docs/requirements.xlsx, docs/uds_catalog.xlsx
-- Argon 이력: docs/prompts/argon_*.txt (실행 SSOT 아님)
 
 □ 공정 규칙 (Stop-the-Line)
 - Hard Gate: 지정 mvn test Failures:0 Errors:0 전 다음 Step 금지

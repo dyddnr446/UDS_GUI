@@ -28,6 +28,7 @@ Desktop.ini
 
 # Logs / temp
 *.log
+!samples/demo_session.log
 launch-err*.txt
 launch-out*.txt
 
