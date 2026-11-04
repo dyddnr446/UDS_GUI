@@ -1,0 +1,31 @@
+================================================================================
+  Step 3 — Slice 3: uds.access
+  진입: Slice 1~2 전체 테스트 통과
+  다음: STEP_03P
+================================================================================
+
+@docs/IMPLEMENTATION_SLICES.txt @docs/PROJECT_PLAN.txt @docs/PACKAGE_MAP.txt
+
+[Step 3: uds.access.state|crypto|service|guard|facade]를 구현한다.
+절대 주의: uds.read.*, uds.write.*, uds.gui.* 는 생성하지 마라.
+
+[구현 대상]
+1. DiagnosticAccessState: DEFAULT_LOCKED / EXTENDED_LOCKED / EXTENDED_UNLOCKED
+2. ActiveDiagnosticContext: 단일 쓰기, Snapshot 반환, reset→generation++/DEFAULT_LOCKED,
+   stale generation 폐기 (FR-27, NFR-19)
+3. DemoSeedKeyAlgorithm: HMAC-SHA256 앞 4바이트 (부록 C)
+4. SessionControlService: byte0==0x50 && (byte1&0x7F)==0x03 → EXTENDED_LOCKED;
+   50 01 → SESSION_ECHO_MISMATCH; 전이 후 recordAccessEvidence (FR-23)
+5. SecurityAccessService: 27 01→67 01→HMAC→27 02→67 02→UNLOCKED;
+   finally Arrays.fill(password); recordAccessEvidence (FR-24, NFR-18)
+6. DiagnosticAccessGuard: EXTENDED_UNLOCKED + runtime/read/write flags (FR-26)
+7. DiagnosticAccessFacade: selectProfile / enterExtended / unlock / reset
+
+[필수 테스트: DemoSeedKeyAndAccessFlowTest]
+- 벡터 → D3 AC 3F 47; ACCESS-VESC-SUCCESS 통과
+- access_scenarios.csv 8 flow / 14 step expected_state·error 전수
+- Guard: locked/미지원 DID/runtime=N → ACCESS_DENIED
+- reset/generation/stale 응답 폐기
+
+[정지 규칙]
+mvn test 통과 후 FR-23~27, NFR-18/19/21, UC-06, DOD-14/15 보고하고 멈춰라.

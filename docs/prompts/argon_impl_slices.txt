@@ -1,0 +1,136 @@
+================================================================================
+  Argon 프롬프트 — 구현 슬라이스 분할
+  용도: Gemini Argon에 붙여 PLAN 11을 Cursor 실행 슬라이스로 재작성
+  후속: Argon 산출 → Cursor Agent가 Slice 순서대로 코드 구현
+  작성 기준: P0 문서 정합 완료 후 (FR-13/Port/SEED/status/AccessEvidence 고정)
+================================================================================
+
+--------------------------------------------------------------------------------
+사용 방법
+--------------------------------------------------------------------------------
+0. (필수에 가깝게) 먼저 docs/prompts/argon_plan_review.txt로
+   PROJECT_PLAN·P0 계약·1차 수직 슬라이스 계획이 맞는지 검수한다.
+   ReadyForSliceSplit=YES일 때만 아래 1로 진행.
+1. 아래 「Argon에 넣을 본문」전체를 복사한다.
+2. 가능하면 docs/PROJECT_PLAN.txt 절 6·8·11·부록 C를 함께 첨부한다.
+3. Argon 응답에서 절대 제약/P0 위반 문장을 걸러 Cursor 착수 순서로 고정한다.
+4. Cursor에는 동일 절대 제약을 상단에 두고 Slice-0부터 한 슬라이스씩 구현한다.
+
+
+================================================================================
+Argon에 넣을 본문 (여기부터 복사)
+================================================================================
+
+역할: UDS Diagnostic GUI 프로젝트의 구현 단계 분할자.
+목표: 기존 PROJECT_PLAN 절 11을 Cursor가 바로 코딩할 수 있는 실행 슬라이스로 재작성한다.
+아키텍처·P0 계약은 이미 닫혔다. 재설계·재토론 금지. 단계 분할·의존·DoD·fixture 매핑만 수행.
+
+[절대 제약 — 위반 제안 금지]
+1) POI 객체는 CatalogLoader 밖으로 나가지 않는다.
+2) ActiveDiagnosticContext만 access 상태를 쓴다.
+3) 교환 체인 고정: AccessGuard → ExchangeCoordinator → ExchangePolicy → RecordingDiagnosticExchangePort → FileDiagnosticExchangePort → StatefulFixtureEcuSimulator.
+4) 0x27 완전 격리: Recording Port는 raw 즉시 폐기·마스킹 메타만 반환. Interpreter는 0x27/0x67 seed/key를 <REDACTED>. resultingState 포함 AccessEvidence는 SessionControl/SecurityAccess가 Context 전이 후 SafeExchangeRecorder.recordAccessEvidence(...)만 호출.
+5) BigDecimal 표시 자릿수 = scale 소수 자릿수. Read/Write status는 CSV expected_status와 1:1.
+
+[닫힌 P0 계약 — 변경 금지]
+- FR-13: SymptomDidMap 후보 표시 + runtime_enabled 실행 필터. ND 실행 DID=0x1001,0x1002,0x1007 / Flipsky=0x1001. 0xF186은 정적 로그 참고만.
+- Port 수명: Analysis Session 동안 Recording/File/Simulator 단일 인스턴스. 시나리오 변경은 FileDiagnosticExchangePort.setFixtureRunConfig(...)만. 서비스는 DiagnosticExchangePort만 참조.
+- <SEED>=AA BB CC DD. <KEY>는 27 02+4바이트 길이 매칭 후 HMAC 상수시간 비교. NEGATIVE는 CSV kind 우선.
+- Read status: NORMAL|ABNORMAL|REJECTED|PARSE_ERROR_*. 범위 없으면 RANGE_NOT_APPLICABLE.
+- Write status: ACCEPTED|REJECTED|VALIDATION_ERROR_*|PARSE_ERROR_*. WD-ERR-004/005는 Validator만·Port 미호출.
+- Access 명칭: DiagnosticAccessFacade, SessionControlService, SecurityAccessService.
+- 50 03 성공: byte0==0x50 && (byte1&0x7F)==0x03. 50 01 → SESSION_ECHO_MISMATCH, DEFAULT_LOCKED 유지.
+- evidenceId 접두: LOG:/READ:/WRITE:/FINDING:/ACCESS:
+- PasswordFileCredentialStore: 끝단 CRLF/LF만 제거.
+- 0x36/0x37 CSV 행은 고정 부정 응답만(카운터/Clock 후속).
+
+[1차 수직 슬라이스 — 반드시 Slice-0/1에 포함]
+- CatalogLoader 불변 스냅샷
+- UC-06 ACCESS-VESC-SUCCESS (seed AA BB CC DD, key D3 AC 3F 47)
+- Guarded Read RD-VESC-001 → 50.0 V / ABNORMAL
+
+[1차 Non-goals]
+실 AI HTTP, 손상 Analysis Session 부분 복원, Socket/CAN, 0x36/37 attempt·delay Clock, SymptomDidMap 후보 확대.
+
+[요청]
+PROJECT_PLAN 절 11(1~10단계)을 Cursor 구현 슬라이스로 재작성하라.
+
+각 슬라이스마다 아래 형식을 지켜라:
+### Slice-N. <짧은 제목>
+- Goal:
+- DependsOn: Slice-...
+- Packages/Classes: (PLAN 8.2 명칭 사용)
+- FixturesToPass: (CSV flow_id/scenario_id)
+- FR/UC/DoD:
+- AutomatedTests:
+- ManualDemoCheck:
+- NonGoals:
+- CursorPromptHint: (다음 Cursor 작업에 붙일 1~3문장)
+
+추가 요구:
+1) Slice 의존 그래프가 사이클 없어야 한다.
+2) 첫 GUI 완주 가능 지점을 명시하라 (unlock→RD-VESC-001).
+3) PLAN 11의 문서 단계는 “이미 완료(Done)”로 표시하고 구현 슬라이스에서 제외하라.
+4) 마지막에 “Cursor 착수 순서”를 번호 목록으로 요약하라.
+5) 절대 제약을 깨는 대안을 제안하지 마라. 불확실하면 NonGoals로 미뤄라.
+
+[첨부 요약]
+- 스택: JDK 17, Maven, JavaFX, Apache POI, OpenAI-compatible API(후속)
+- 현재 코드: 없음 (docs/samples/tool/config만 존재)
+- PLAN 11 요약:
+  1) 문서·카탈로그·상세 설계 — 이미 완료(Done). 구현 슬라이스에서 제외.
+  2) Catalog·Interpreter — Excel Loader, 불변 모델, profile/DID 필터, POI는 Loader만, 로그 해석 단위 테스트
+  3) Exchange 기반 — StatefulFixtureEcuSimulator, File Port, Recording Port, SafeRecorder
+  4) Diagnostic Access — Extended 성공/거절, PasswordField, seed/key, invalidKey, AccessGuard, generation reset
+  5) 최소 JavaFX 수직 슬라이스 — Access + Interpreter + 대표 Read DID로 unlock→ReadResult 완주
+  6) WriteData — writable DID, Guard, 인코딩, 0x6E/7F, CSV status 1:1 WriteResult
+  7) Analysis Session — schemaVersion/ID, redacted AccessEvidence, 원자 저장·부분 읽기 전용 복원
+  8) 외부 AI Advisor — sanitizer, evidence 검증, 실패 격리 (실 HTTP는 후속 가능)
+  9) GUI 완성·회귀 — 추가 runtime DID, 오류 상태, fixture 자동 검증, 시연 리허설
+  10) 확장(선택) — 0x36/37 Clock, Socket/CAN, C Gateway (1차에서 0x36/37은 고정 부정만)
+
+- 핵심 fixture:
+  ACCESS-VESC-SUCCESS / ACCESS-ND-SUCCESS / ACCESS-INVALID-KEY / ACCESS-BAD-SESSION-ECHO
+  RD-VESC-001 (50.0 V, ABNORMAL) / RD-ND-001
+  WD-ND-002 (ACCEPTED) / WD-ERR-004 (VALIDATION_ERROR_RANGE, Port 미호출)
+- credential: config/demo_password.txt = uds-demo-2026 (trailing CRLF/LF only)
+- HMAC 벡터: password=uds-demo-2026, seed=AA BB CC DD, profile=FARDRIVER_ND72530 → D3 AC 3F 47
+  (ACCESS-VESC-SUCCESS도 동일 seed/key 계약)
+
+- PLAN 8.2 주요 명칭 (그대로 사용):
+  CatalogLoader, UdsCatalog, UdsInterpreter, DidValueParser, FindingAnalyzer,
+  DiagnosticAccessFacade, SessionControlService, SecurityAccessService,
+  ActiveDiagnosticContext, DiagnosticAccessGuard, DemoSeedKeyAlgorithm,
+  DiagnosticExchangePort, RecordingDiagnosticExchangePort, FileDiagnosticExchangePort,
+  StatefulFixtureEcuSimulator, FixtureRunConfig, PasswordFileCredentialStore,
+  SafeExchangeRecorder, AccessEvidence, ReadDataService, WriteDataService,
+  WriteValueValidator, DidValueEncoder
+
+- 패키지 경계:
+  uds.catalog / uds.interpreter / uds.access / uds.exchange / uds.fixture /
+  uds.read / uds.write / uds.analysis / uds.ai / uds.gui
+
+================================================================================
+본문 끝
+================================================================================
+
+
+--------------------------------------------------------------------------------
+Argon 응답 검수 체크리스트 (사람/Cursor)
+--------------------------------------------------------------------------------
+[ ] 문서 단계(PLAN 11-1)를 Done으로 제외했는가
+[ ] Slice-0/1에 CatalogLoader + ACCESS-VESC-SUCCESS + RD-VESC-001이 있는가
+[ ] setFixtureRunConfig / 단일 Port 인스턴스를 깨는 제안이 없는가
+[ ] AccessEvidence를 Recording Port가 resultingState까지 기록하라고 하지 않았는가
+[ ] CSV status enum을 요약 상태로 뭉개지 않았는가
+[ ] 의존 사이클이 없는가
+[ ] Cursor 착수 순서 번호 목록이 있는가
+[ ] Non-goals에 실 AI HTTP / Socket/CAN / 0x36·37 Clock이 남아 있는가
+
+
+--------------------------------------------------------------------------------
+Cursor 후속 구현 시 상단 고정문 (슬라이스마다 재사용)
+--------------------------------------------------------------------------------
+절대 제약: POI=CatalogLoader만; ActiveDiagnosticContext 단일 쓰기; 교환 체인
+Guard→Coordinator→Policy→Recording→File; 0x27 완전 격리; BigDecimal+CSV status 1:1.
+이번 작업은 Argon Slice-N만 구현한다. 범위 밖 클래스/기능을 추가하지 않는다.

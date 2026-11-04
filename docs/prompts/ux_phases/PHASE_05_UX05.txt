@@ -1,0 +1,42 @@
+================================================================================
+  PHASE_05_UX05 — UDS-UX-05 Demo Stepper + Analysis 복원 보안 배너
+================================================================================
+STATUS: DONE
+ticket: UDS-UX-05 | Gemini Phase: 5 | depends_on: UDS-UX-02, UDS-UX-04
+packages: uds.gui.app, uds.gui.shell, uds.gui.analysis
+DoD: mvn test Failures:0 Errors:0 ; 복원 후 DEFAULT_LOCKED ; 정지
+
+공통: @GUARDRAILS.txt. 복원 시 Context를 Unlocked로 바꾸지 말 것 (함정 2).
+다음 Phase 임의 진행 금지.
+
+---- Gemini TASK 원문 ----
+
+[TASK: Phase 5 — UDS-UX-05 구현·테스트·검증]
+`uds.gui.app`, `uds.gui.shell`, `uds.gui.analysis` 내에서 작업하여 UDS-UX-05 (상단 Demo Story Stepper 및 Analysis Session 복원 보안 배너)를 수행하라.
+
+### 1단계: 구현 (Implementation)
+1. 상단 Demo Story Stepper (`MainViewModel`, `UdsGuiApplication`):
+   - Global Diagnostic Status Bar 바로 아래(또는 통합 상단 바)에 6~8분 시연 흐름을 안내하는 5단계 Stepper 버튼 바를 추가하라:
+     * `Step 1: 로그 해석 (UC-01)` → Interpreter 탭 이동
+     * `Step 2: 접근 해제 (UC-06)` → Access 탭 이동
+     * `Step 3: 급정지·AI (UC-02)` → AI Advisor 탭 이동
+     * `Step 4: 데이터 쓰기 (UC-05)` → WriteData 탭 이동
+     * `Step 5: 세션 저장·복원 (UC-03)` → Analysis Session 탭 이동
+   - 각 단계가 수행되었을 때(예: 로그 로드 완료, Unlock 완료, AI/Finding 생성 완료, Write 완료, Save/Restore 완료) 해당 Step 버튼에 완료 표시(예: `✓`)가 반영되도록 상태 프로퍼티를 연결하라.
+2. Analysis Session 복원 요약 및 보안 배너 (`AnalysisSessionViewModel`, `UdsGuiApplication`):
+   - `analysis.json` 복원(Restore) 수행 시:
+     * 복원된 항목 수 요약(`Requests`, `Responses`, `Findings`, `AccessEvidence` 건수)과 카탈로그/스키마 정합성 상태를 구조화된 요약 텍스트/프로퍼티로 노출하라.
+     * **필수 보안 배너**: 복원 직후 `"보안 정책 안내: 과거 세션 데이터만 복원되었으며, Security Unlock 권한은 복원되지 않습니다 (현재 상태: DEFAULT / LOCKED)."` 배너가 Analysis Session 탭(및 상단 상태 바)에 명확히 표시되게 하라.
+   - 주의(함정 2 방지): 복원 시 절대 `ActiveDiagnosticContext`를 Unlocked 상태로 변경하지 마라. 반드시 Locked 상태를 유지하고 상단 Status Bar도 Locked로 동기화하라.
+
+### 2단계: 테스트 (Testing)
+- `AnalysisSessionViewModelTest` 및 `MainViewModelTest`에 다음 테스트를 추가하라:
+  1) 세션 복원 성공 시 복원 요약 정보와 보안 안내 배너 플래그/문구가 활성화되는지 검증.
+  2) 복원 직후 `ActiveDiagnosticContext`의 접근 상태가 여전히 `DEFAULT_LOCKED`(권한 미복원)인지 검증.
+  3) 각 시연 단계 액션 수행 시 Stepper 완료 상태가 갱신되는지 검증.
+
+### 3단계: 검증 (Verification)
+1. `mvn test`를 실행하여 Must UX 티켓(`UDS-UX-01` ~ `UDS-UX-05`) 관련 모든 테스트가 통과하는지 확인하라.
+2. 결과를 요약 보고하고 다음 지시를 대기하라.
+
+끝.

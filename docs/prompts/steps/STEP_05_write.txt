@@ -1,0 +1,27 @@
+================================================================================
+  Step 5 — Slice 5: uds.write + WriteDataViewModel
+  진입: VerticalSliceMilestoneTest 통과
+  다음: STEP_06
+================================================================================
+
+@docs/IMPLEMENTATION_SLICES.txt @docs/PROJECT_PLAN.txt @docs/PACKAGE_MAP.txt
+
+[Step 5: uds.write.* + uds.gui.write]을 구현한다.
+절대 주의: Analysis Session 저장/복원·uds.ai는 아직 금지. PACKAGE_MAP 경로만.
+
+[구현 대상]
+1. WriteStatus: ACCEPTED|REJECTED|VALIDATION_ERROR_RANGE|VALIDATION_ERROR_TYPE|
+   PARSE_ERROR_DID_MISMATCH|PARSE_ERROR_LENGTH|ACCESS_DENIED
+2. WriteValueValidator: TYPE/RANGE 실패 시 Port 미호출 (WD-ERR-004/005, FR-21)
+3. DidValueEncoder: BigDecimal divide(scale) → Big-Endian
+4. WriteDataRequestGenerator / WriteResponseParser / WriteResult
+5. uds.write.service.WriteDataService / uds.gui.write.WriteDataViewModel:
+   직전 ACCEPTED 보존, fixture 고지 (NFR-08)
+
+[필수 테스트: WriteScenariosParameterizedTest]
+- write_data_scenarios.csv 12행 request_hex·expected_status 100%
+- WD-ERR-004/005 Port 0회·JSONL 0
+- ACCEPTED 후 REJECTED 시 lastAccepted 유지
+
+[정지 규칙]
+mvn test 통과 후 CSV 12행 대조 표를 출력하고 멈춰라.

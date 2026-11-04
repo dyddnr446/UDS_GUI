@@ -1,0 +1,29 @@
+================================================================================
+  Step 7A — Slice 7 전반: uds.ai 도메인
+  진입: Slice 1~6 전체 테스트 통과
+  다음: STEP_07B
+================================================================================
+
+@docs/IMPLEMENTATION_SLICES.txt @docs/PROJECT_PLAN.txt @docs/PACKAGE_MAP.txt
+
+[Step 7A: uds.ai.context|provider|advisor]를 구현한다.
+절대 주의: uds.gui.app.UiTaskRunner / uds.gui.ai.AiAdvisorController는 Step 7B.
+
+[구현 대상]
+1. SymptomDidSuggestionService (FR-13):
+   - 후보 전체 표시; 실행 DID는 runtime 필터
+     ND: [0x1001,0x1002,0x1007] / Flipsky: [0x1001]
+   - 0xF186 → staticLogReferenceDids
+2. AdvisorContext + AdvisorContextSanitizer (FR-09, NFR-18/20)
+3. AdvisorPromptBuilder
+4. AiProvider + ExternalAiClient: UDS_AI_API_KEY env만, 15초, AiError (FR-18)
+5. AiAdvisor + AiAdviceResult: 사실 격리, evidenceIds≥1 검증 (FR-17, NFR-14/16)
+
+[필수 테스트: AiAdvisorAndSanitizerTest]
+- FR-13 급정지 필터
+- 프롬프트에 password/seed/key 평문 0건
+- Mock AI 무근거 항목 제거
+- AiError 시 Finding/WriteResult 유지
+
+[정지 규칙]
+mvn test 통과 후 FR-09/12/13/17/18, NFR-12~16/18 보고하고 멈춰라.

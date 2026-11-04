@@ -1,0 +1,8 @@
+DONE
+# Micro-Gate 전체 통과. 추가 Micro-Gate Step 없음.
+# 순서: STEP_00 → … → STEP_07A → STEP_07B → STEP_08 → DONE
+#
+# DONE 이후 GUI 사용성(후속): docs/prompts/ux_phases/CURRENT_UX.txt
+#   AC: docs/UX_USABILITY_BACKLOG.txt
+#   수용 아카이브: docs/prompts/gemini_consulting_accepted.txt
+# CURRENT를 STEP_09 등으로 되돌리지 말 것.

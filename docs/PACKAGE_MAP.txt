@@ -1,0 +1,185 @@
+================================================================================
+  PACKAGE_MAP — 패키지 배치 SSOT
+================================================================================
+
+□ 역할
+- IDE 탐색·신규 클래스 배치의 단일 기준.
+- PROJECT_PLAN 절 8 feature 루트(uds.io, uds.catalog, …)는 유지하고,
+  하위를 역할(role) 단위로만 나눈다.
+- Step 프롬프트·IMPLEMENTATION_SLICES 클래스 목록은 이 파일 경로를 따른다.
+
+□ 원칙
+1. 깊이 상한: uds.<feature>.<role>  (GUI만 uds.gui.<feature>)
+2. 클래스 수 ≤4 인 feature는 평탄 허용 (현재: uds.io)
+3. 새 클래스는 아래 표의 역할 패키지에만 추가. 평탄 feature 루트에 직접 추가 금지
+4. No Look-Ahead: 미착수 feature 루트뿐 아니라, 같은 feature의 미착수 role
+   빈 껍데기 패키지/클래스도 만들지 않는다
+5. Apache POI (Workbook/Sheet/Row/Cell)는 uds.catalog.load.CatalogLoader 내부만
+6. 테스트는 src/test/java 에서 동일 패키지 경로를 미러한다
+7. FQCN 이동 시 동작·테스트 기대값 변경 금지 (패키지·import만)
+
+================================================================================
+목표 트리
+================================================================================
+
+uds.io/                          # 평탄 유지
+  Frame, LineError, HexNormalizer, LogReader, LogReadResult
+
+uds.catalog.model/
+  ControllerProfile, DidDefinition, DidProfileSupport, SymptomDidMap,
+  ServiceDefinition, SubFunctionDefinition, NrcDefinition,
+  DtcStatusBitDefinition, LayoutDefinition
+
+uds.catalog.load/
+  CatalogLoader, UdsCatalog
+
+uds.interpreter.model/
+  DecodeKind, DecodeResult
+
+uds.interpreter.decode/
+  SidDecoder, UdsParser, UdsInterpreter
+
+uds.access.state/
+  DiagnosticAccessState, AccessSnapshot, ActiveDiagnosticContext
+
+uds.access.crypto/
+  DemoSeedKeyAlgorithm
+
+uds.access.service/
+  SessionControlService, SecurityAccessService, AccessOutcome
+
+uds.access.guard/
+  DiagnosticAccessGuard, GuardDecision
+
+uds.access.facade/
+  DiagnosticAccessFacade
+
+uds.exchange.api/
+  DiagnosticExchangePort, ExchangeRequest, ExchangeResponse
+
+uds.exchange.policy/
+  ExchangePolicy, ExchangeCoordinator
+
+uds.exchange.recording/
+  RecordingDiagnosticExchangePort
+
+uds.fixture.config/
+  FixtureRunConfig, Clock, SystemClock
+
+uds.fixture.repo/
+  FixtureRepository, AccessStep, ReadScenario, WriteScenario
+
+uds.fixture.credential/
+  PasswordFileCredentialStore, CredentialConfigException
+
+uds.fixture.sim/
+  StatefulFixtureEcuSimulator, DemoHmacKeyAlgorithm
+
+uds.fixture.port/
+  FileDiagnosticExchangePort
+
+uds.analysis.evidence/
+  AccessEvidence
+
+uds.analysis.record/
+  SafeExchangeRecorder
+
+uds.analysis.session/            # Step 6
+  AnalysisSessionStore
+
+uds.analysis.report/             # Step 6
+  AnalysisReportWriter
+
+uds.read.service/                # Step 4A
+  ReadDataService
+
+uds.read.request/
+  ReadDataRequestGenerator
+
+uds.read.parse/
+  DidValueParser, ParsedDidValue
+
+uds.read.finding/
+  FindingAnalyzer, Finding, ReadDataResult
+
+uds.write.service/               # Step 5
+  WriteDataService
+
+uds.write.validate/
+  WriteValueValidator
+
+uds.write.encode/
+  DidValueEncoder
+
+uds.write.request/
+  WriteDataRequestGenerator
+
+uds.write.parse/
+  WriteResponseParser, WriteResult
+
+uds.ai.context/                  # Step 7A
+  AdvisorContext, AdvisorContextSanitizer, AdvisorPromptBuilder
+
+uds.ai.provider/
+  AiProvider, ExternalAiClient
+
+uds.ai.advisor/
+  AiAdvisor, AiAdviceResult, AiError, SymptomDidSuggestionService
+
+uds.gui.app/                     # Step 4B+ / Slice UX(optional)
+  UdsGuiApplication, UiTaskRunner, AppSession
+  (+예정 UX, 문서만·빈 껍데기 금지) *TabView 헬퍼 분리 허용;
+  UiTaskRunner에 JavaFX 프로퍼티(running/progress) 확장 예정
+
+uds.gui.shell/
+  MainViewModel
+  (+예정 UX) DemoStoryStepper 조합·전역 Status 구독 배선
+  — MainViewModel은 계속 조합만; 도메인 판정 금지
+
+uds.gui.access/
+  AccessViewModel
+
+uds.gui.interpreter/
+  InterpreterController
+  (+예정 UX) FileChooser·LineError/REDACTED 필터 표시
+
+uds.gui.read/
+  ReadDataViewModel
+  (+예정 UX) runtime DID·scenario → javafx ObservableList 승격;
+  ACCESS_DENIED 배너 상태
+
+uds.gui.write/
+  WriteDataViewModel
+  (+예정 UX) ObservableList 승격; Validator/Guard/Exchange 단계 표시(Could)
+
+uds.gui.ai/
+  AiAdvisorController
+  (+예정 UX) runSymptomToAiPipeline(원클릭);
+  evidenceId Chip → 사실 구역 하이라이트
+
+uds.gui.analysis/
+  AnalysisSessionViewModel
+  (+예정 UX) 복원 보안 배너·건수/catalog 요약; Zero-Leak 미리보기(Could)
+
+□ Slice UX 착수 규칙
+- 위 “(+예정 UX)”는 PACKAGE_MAP 예고만. 코드는 docs/UX_USABILITY_BACKLOG.txt
+  티켓 착수 시에만 추가 (No Look-Ahead 유지).
+- 신규 클래스는 위 gui feature.role 패키지에만. 도메인 feature 변경 금지.
+
+================================================================================
+게이트 테스트 패키지 (미러)
+================================================================================
+
+uds.catalog.load.IoAndCatalogLoaderTest
+uds.interpreter.decode.UdsInterpreterTest
+uds.fixture.credential.CredentialAndSimulatorTest
+uds.exchange.recording.RecordingPortRedactionTest
+uds.access.facade.DemoSeedKeyAndAccessFlowTest
+(이후 Step 게이트 테스트도 해당 feature.role 패키지에 둔다)
+
+================================================================================
+정렬 Micro-Gate
+================================================================================
+
+Step 3P (STEP_03P_package_align.txt): 기존 평탄 패키지 → 본 맵으로 이동 후
+mvn test 전수 통과. Step 4A 이전에 완료한다.

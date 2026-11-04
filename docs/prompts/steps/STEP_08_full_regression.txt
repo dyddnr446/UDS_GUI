@@ -1,0 +1,26 @@
+================================================================================
+  Step 8 — Slice 8: 전수 회귀 + requirements DoD 게이트
+  진입: Slice 1~7 전체 테스트 통과
+  다음: DONE (CURRENT.txt = DONE)
+================================================================================
+
+@docs/IMPLEMENTATION_SLICES.txt @docs/PROJECT_PLAN.txt @docs/PACKAGE_MAP.txt
+
+[Step 8: FullRequirementsRegressionTest + FR-11/FR-19 마무리]를 수행한다.
+
+[범위]
+1. FR-11(S) 레퍼런스 정합
+2. FR-19(S) 다중 Read 시나리오 누적
+3. FullRequirementsRegressionTest:
+   - requirements.xlsx Must FR/NFR/UC/DOD 존재 확인 (POI 실파일)
+   - access 14 + read 11 + write 12 = 37행 서비스 체인 전수
+   - 시연 E2E: UC-01/06/02/04/05/03 (PROJECT_PLAN 9·10장)
+   - DOD-16 Zero-Leakage 전수 스캔
+   - NFR-04: 200프레임 해석 ≤ 3.0초
+
+[최종 보고]
+mvn clean test 통과 결과 + DOD-01~17 표
+(ID / 항목명 / 통과 여부 / 검증 테스트 메서드)
+
+[정지 규칙]
+전체 통과 후 CURRENT.txt를 DONE으로 갱신하고 멈춰라.

@@ -1,0 +1,22 @@
+================================================================================
+  Step 7B — Slice 7 후반: UiTaskRunner + AiAdvisorController
+  진입: AiAdvisorAndSanitizerTest 100% 통과
+  다음: STEP_08
+================================================================================
+
+@docs/IMPLEMENTATION_SLICES.txt @docs/PROJECT_PLAN.txt @docs/PACKAGE_MAP.txt
+
+[Step 7B: uds.gui.app.UiTaskRunner + uds.gui.ai.AiAdvisorController]를 구현한다.
+
+[구현 대상]
+1. uds.gui.app.UiTaskRunner: JavaFX Task/CompletableFuture 백그라운드, cancel, 15초 (NFR-15/17, DOD-08)
+2. uds.gui.ai.AiAdvisorController:
+   - 현상 → SymptomDidSuggestion → ReadData 연동
+   - 사실 구역 vs [AI 설명] 분리 + evidenceIds 표시 (FR-08/12/17, NFR-14)
+
+[필수 테스트: AiUiTaskNonBlockingTest]
+- 5초 지연 Mock: 호출 스레드 비블로킹
+- cancel() 시 Finding 유지
+
+[정지 규칙]
+mvn test 통과 후 보고하고 멈춰라.

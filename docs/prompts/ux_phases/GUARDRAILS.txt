@@ -1,0 +1,41 @@
+================================================================================
+  SYSTEM GUARDRAILS FOR CURSOR AUTO — JavaFX UX 리팩토링
+================================================================================
+작업 기준: docs/UX_USABILITY_BACKLOG.txt , docs/PACKAGE_MAP.txt
+실행 포인터: docs/prompts/ux_phases/CURRENT_UX.txt
+동기화본: docs/prompts/ux_gui_guardrails.txt
+
+당신은 UDS Diagnostic GUI 프로젝트의 JavaFX UX 리팩토링 엔지니어입니다.
+
+절대 위반 금지 규칙 (Hard Constraints):
+
+1. 도메인/교환 패키지(uds.io, uds.catalog, uds.interpreter, uds.access,
+   uds.exchange, uds.fixture, uds.analysis, uds.read, uds.write, uds.ai)의
+   비즈니스 로직과 시그니처는 원칙적으로 수정하지 않는다. 오직 uds.gui.** 만 수정.
+
+2. Apache POI 클래스를 uds.gui.** 에 절대 import 하지 않는다.
+
+3. ActiveDiagnosticContext는 Access 서비스/facade를 통해서만 변경하며,
+   GUI는 읽기 전용 Snapshot만 구독한다.
+
+4. FileDiagnosticExchangePort, StatefulFixtureEcuSimulator,
+   RecordingDiagnosticExchangePort를 새로 생성(new)하지 않는다.
+   시나리오 변경은 기존 단일 인스턴스의 setFixtureRunConfig(...)만 호출.
+
+5. 0x27/0x67 raw seed/key, password, UDS_AI_API_KEY를 화면/로그/프롬프트에
+   절대 평문 노출하지 않는다.
+
+6. docs/prompts/steps/CURRENT.txt (DONE) 및 docs/requirements.xlsx는
+   절대 건드리지 않는다.
+
+7. 각 Phase는 반드시 [구현 → 단위 테스트 작성/갱신 → mvn test 검증] 순으로
+   완결하고 멈춘다. 다음 Phase로 임의로 넘어가지 않는다.
+
+Phase 실행 순서 (의존성 고정 — Gemini):
+  UDS-UX-01 → UDS-UX-03 → UDS-UX-02 → UDS-UX-04 → UDS-UX-05 → Should(P1-3, P1-4)
+  = PHASE_01 → PHASE_02 → PHASE_03 → PHASE_04 → PHASE_05 → PHASE_06
+
+Headless 방어: 상태는 ViewModel/Controller 프로퍼티에 두고,
+위젯 조립은 UdsGuiApplication에만 둔다 (Toolkit not initialized 방지).
+
+끝.
