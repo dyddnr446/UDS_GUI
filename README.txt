@@ -163,7 +163,6 @@ UDS(Unified Diagnostic Services)는 차량 ECU와 진단기로 대화할 때 쓰
 디렉터리 구조
 ================================================================================
   run.bat                 GUI 실행 (더블클릭)
-  TUTORIAL.txt            카탈로그·UDS 읽는 법 (사람용)
   .env                    과제 제출용 환경 설정 (채점·실행용으로 포함)
   pom.xml / mvnw* / .mvn/ Maven 빌드
   ai_advisor_prompt.txt   AI 시스템·사용자 프롬프트 템플릿
