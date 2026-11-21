@@ -12,18 +12,23 @@ Analysis / AI 조언을 한 화면에서 돌려 볼 수 있습니다.
 1) JDK 25 이상
    - Maven은 없어도 됩니다. 저장소에 mvnw(Maven Wrapper)가 포함되어 있습니다.
 
-2) 프로젝트 루트에 .env 파일 생성 (Git에 올리지 않음)
-   최소 예시:
+2) .env (환경 설정)
+   - 일반적인 프로젝트에서는 .env 를 Git에 올리지 않습니다.
+   - 이 저장소는 과제 제출·채점용이라 .env 를 함께 포함합니다.
+     (클론 후 바로 실행할 수 있도록)
+
+   포함되어 있는 주요 값:
 
      TEST=TRUE
-     UDS_DEMO_PASSWORD=uds-demo-2026
+     UDS_DEMO_PASSWORD=...
      UDS_AI_API_KEY=
 
    - TEST=TRUE  … 장비 없이 fixture ECU로 동작 (기본·권장)
    - TEST=FALSE … CAN 실장비 자리 (현재 미구현)
    - UDS_DEMO_PASSWORD … Security Access(0x27) 데모 비밀번호
-   - UDS_AI_API_KEY … AI 조언용 (비우면 AI 기능만 비활성)
-   - 경로를 비우면 아래 기본 경로를 사용합니다.
+   - UDS_AI_API_KEY … AI 조언용 (비어 있으면 AI만 비활성)
+     ※ 개인 API 키는 제출본에 넣지 마세요. 필요 시 로컬에서만 채웁니다.
+   - 카탈로그·픽스처 기본 경로:
        catalog/uds_system_catalog.xlsx
        catalog/uds_guide_catalog.xlsx
        fixtures/uds_fixture_scenarios.xlsx
@@ -44,6 +49,7 @@ Analysis / AI 조언을 한 화면에서 돌려 볼 수 있습니다.
 디렉터리 구조
 ================================================================================
   run.bat                 GUI 실행 (더블클릭)
+  .env                    과제 제출용 환경 설정 (채점·실행용으로 포함)
   pom.xml / mvnw* / .mvn/ Maven 빌드
   ai_advisor_prompt.txt   AI 시스템·사용자 프롬프트 템플릿
 
@@ -58,7 +64,7 @@ Analysis / AI 조언을 한 화면에서 돌려 볼 수 있습니다.
   output/                 실행 결과 (저장소에는 자리만 둠)
 
 로컬에만 두고 GitHub에는 올리지 않는 것:
-  .env, target/, doc/, test/, 제출문서/ 등
+  target/, doc/, test/, 제출문서/ 등
 
 
 ================================================================================
