@@ -1,43 +1,77 @@
-# Local secrets / machine config (never commit API keys)
+# =============================================================================
+# GitHub 제출용 — 실행·소스·제출문서만 추적
+# 로컬 Cursor/공정 문서는 디스크에 두되 push 하지 않음
+# =============================================================================
+
+# Secrets (절대 push 금지)
 .env
 .env.local
 .env.*.local
+.env.example
 
-# Build & packaged app
+# Build cache
 target/
 dist/
-outputs/
+*.class
 *.jar
 *.war
 *.ear
+
+# Runtime output (실행 시 생성 — 저장소에는 .gitkeep만)
+output/**
+!output/.gitkeep
+
+# Logs / temp
+*.log
 hs_err_pid*
 replay_pid*
+launch-err*.txt
+launch-out*.txt
 
-# IDE / editor
+# IDE / OS
 .idea/
 *.iml
 .vscode/
-*.class
 *.swp
 *~
-
-# OS
 Thumbs.db
 Desktop.ini
 .DS_Store
 
-# Logs / temp
-*.log
-!samples/demo_session.log
-launch-err*.txt
-launch-out*.txt
-
-# Python
+# Python local
 __pycache__/
 *.py[cod]
 .venv/
 venv/
 
-# Cursor / local agent (if ever under project root)
+# Cursor / agent (로컬만)
 .cursor/
+.cursorrules
 agent-transcripts/
+
+# -----------------------------------------------------------------------------
+# 개발 공정 문서·레거시 (로컬 유지, GitHub 제외)
+# 런타임에 필요한 것만 예외로 추적: doc/guide/, resolve-runtime.bat
+# -----------------------------------------------------------------------------
+docs/
+scripts/
+tool/
+samples/
+config/
+
+doc/steps/
+doc/ux/
+doc/topology/
+doc/tools/**
+!doc/tools/resolve-runtime.bat
+!doc/tools/package-win.bat
+
+# doc 루트의 공정·초안 파일 (제출본은 제출문서/ 사용)
+doc/*.txt
+doc/*.xlsx
+doc/*.docx
+doc/GEMINI*
+doc/DEVDOC*
+
+# 강의 자료 PDF 등
+*.pdf

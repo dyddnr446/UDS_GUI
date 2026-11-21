@@ -12,7 +12,9 @@ public final class HexNormalizer {
     if (raw == null) {
       return Optional.empty();
     }
-    String compact = raw.replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
+    // Live logs may contain "<REDACTED>" from older masking — treat as zero bytes.
+    String compact =
+        expandRedactedTokens(raw).replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
     if (compact.isEmpty()) {
       return Optional.empty();
     }
@@ -35,7 +37,7 @@ public final class HexNormalizer {
     if (raw == null) {
       return "null hex";
     }
-    String compact = raw.replaceAll("\\s+", "");
+    String compact = expandRedactedTokens(raw).replaceAll("\\s+", "");
     if (compact.isEmpty()) {
       return "empty hex";
     }
@@ -48,5 +50,13 @@ public final class HexNormalizer {
       }
     }
     return "invalid hex";
+  }
+
+  /** {@code <REDACTED>} → four zero bytes (seed/key placeholder length). */
+  static String expandRedactedTokens(String raw) {
+    if (raw == null) {
+      return "";
+    }
+    return raw.replaceAll("(?i)<\\s*REDACTED\\s*>", "00 00 00 00");
   }
 }

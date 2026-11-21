@@ -1,4 +1,14 @@
 package uds.catalog.model;
 
-public record DtcStatusBitDefinition(
-    int bit, String mask, String nameEn, String meaningKo, String checkPointKo) {}
+/** Runtime DTC status bit identity (system catalog). */
+public record DtcStatusBitDefinition(int bit, String mask, String nameEn) {
+
+  public DtcStatusBitDefinition {
+    mask = nullToEmpty(mask);
+    nameEn = nullToEmpty(nameEn);
+  }
+
+  private static String nullToEmpty(String s) {
+    return s == null ? "" : s;
+  }
+}

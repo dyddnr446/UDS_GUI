@@ -1,6 +1,0 @@
-DONE
-# UX Phase 전체 통과 (PHASE_01..06).
-# 순서: PHASE_01_UX01 → PHASE_02_UX03 → PHASE_03_UX02 →
-#       PHASE_04_UX04 → PHASE_05_UX05 → PHASE_06_SHOULD → DONE
-#
-# Micro-Gate docs/prompts/steps/CURRENT.txt 는 DONE 유지. 되돌리지 말 것.

@@ -1,39 +1,48 @@
 UDS Diagnostic GUI & AI Advisor
-JAVA 개인 프로젝트 (자작자동차 동아리 임베디드)
+과목: 2026-2 Java
 
-실행 (원클릭)
-  추천(시연): dist\UdsDiagnosticGui\UdsDiagnosticGui.exe 또는 실행.bat
-  개발: 프로젝트 루트 run.bat 더블클릭  (Maven 필요, 창을 닫지 말 것)
-  exe 다시 만들기: scripts\package-win.bat
+================================================================================
+GitHub에 올리는 것 (이 저장소)
+================================================================================
+  src/                    Java 소스
+  test/                   JUnit + fixtures (시나리오 xlsx)
+  기준정보/                 uds_system_catalog.xlsx
+  doc/guide/              가이드 카탈로그 (런타임)
+  doc/tools/resolve-runtime.bat   JDK/Maven 탐지
+  제출문서/                 교수님용 개발문서·토폴로지
+  pom.xml  mvnw*  .mvn/   Maven
+  run.bat                 GUI 실행
+  ai_advisor_prompt.txt   AI 프롬프트
+  README.txt              이 파일
+  output/.gitkeep         결과 폴더 자리만
 
-환경설정 (.env)
-  1) .env.example 을 복사해 .env 생성  (git에 올리지 말 것)
-  2) UDS_AI_API_KEY=...  등 로컬 값 입력
-  3) OS 환경변수가 있으면 .env보다 우선
-  수업용 ECU 비밀번호는 계속 config/demo_password.txt (fixture)
+올리지 않음 (.gitignore)
+  .env  target/  output 로그  .cursorrules  doc/steps·ux·공정 초안 등
 
-시작 문서 (역할 분리)
-  docs/PROJECT_PLAN.txt            개요서 · 제품 정의 · 상세 설계
-  docs/IMPLEMENTATION_SLICES.txt   실행 계획 · Slice · Micro-Gate 맵
-  docs/PACKAGE_MAP.txt             패키지·클래스 배치 SSOT (IDE 탐색)
-  docs/prompts/steps/CURRENT.txt   지금 할 Step ID
-  docs/prompts/steps/STEP_*.txt    해당 Step Cursor 프롬프트 (하나만 @)
-  docs/UDS_GUIDE.txt               UDS 입문
+================================================================================
+실행
+================================================================================
+1) JDK 25+, (선택) Maven — 없으면 mvnw 사용
+2) 루트에 .env 생성 (저장소에 없음)
+     TEST=TRUE
+     UDS_DEMO_PASSWORD=uds-demo-2026
+     UDS_AI_API_KEY=   (선택)
+3) run.bat
+   → output\ 에 live_session.log 등 생성
 
-폴더
-  docs/     개요서 + 실행 계획 + prompts/steps + 엑셀 SSOT
-  tool/     엑셀 재생성 스크립트
-  samples/  시연 로그 + fixture CSV
-  config/   demo_password.txt
+테스트
+  mvnw.cmd test
+  목표: Failures:0 Errors:0
 
-구현 시작
-  1) .cursorrules 자동 적용 확인
-  2) CURRENT.txt가 STEP_00인지 확인
-  3) @IMPLEMENTATION_SLICES + @CURRENT + @STEP_00_ssot_audit 만 붙여 Step 0 실행
-  4) 통과 후 CURRENT를 다음 Step으로 갱신하고 반복
-  5) 실패 시 prompts/steps/STOP_RECOVERY.txt
+================================================================================
+제출 문서
+================================================================================
+  제출문서\제출_개발문서_초안.docx
+  제출문서\DEVDOC_REQUIREMENTS_TEST.xlsx
+  제출문서\topology\
 
-핵심 범위
-  JavaFX GUI + Excel profile/DID + Access(0x10/0x27) + File Port Read/Write
-  1차 마일스톤: ACCESS-VESC-SUCCESS → RD-VESC-001 (50.0 V / ABNORMAL)
-  제외: 실제 Socket/CAN/UART/ISO-TP, 로컬 Knowledge RAG
+================================================================================
+환경
+================================================================================
+  TEST=TRUE   Offline Simulation (장비 불필요)
+  TEST=FALSE  CAN 자리 (미구현)

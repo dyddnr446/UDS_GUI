@@ -63,7 +63,7 @@ public final class DotEnv {
     return applied;
   }
 
-  /** Walk {@code start} and parents (up to 8) looking for {@code .env}. */
+  /** Walk {@code start} and parents (up to 8) looking for project-root {@code .env}. */
   public static int loadNear(Path start) {
     Path walk = start == null ? Path.of(".").toAbsolutePath().normalize() : start.toAbsolutePath().normalize();
     for (int i = 0; i < 8 && walk != null; i++) {

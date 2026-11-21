@@ -11,11 +11,12 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.release>17</maven.compiler.release>
-    <javafx.version>17.0.13</javafx.version>
+    <maven.compiler.release>25</maven.compiler.release>
+    <javafx.version>25.0.5</javafx.version>
     <poi.version>5.2.5</poi.version>
     <jackson.version>2.17.2</jackson.version>
     <junit.version>5.10.3</junit.version>
+    <langchain4j.version>1.23.0</langchain4j.version>
   </properties>
 
   <dependencies>
@@ -50,14 +51,41 @@
       <version>${jackson.version}</version>
     </dependency>
     <dependency>
+      <groupId>dev.langchain4j</groupId>
+      <artifactId>langchain4j</artifactId>
+      <version>${langchain4j.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>dev.langchain4j</groupId>
+      <artifactId>langchain4j-open-ai</artifactId>
+      <version>${langchain4j.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
       <version>${junit.version}</version>
       <scope>test</scope>
     </dependency>
+    <!-- POI(Log4j2 API) + LangChain4j(SLF4J) 콘솔 경고 제거용 브리지/심플 로거 -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>2.0.16</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-to-slf4j</artifactId>
+      <version>2.24.3</version>
+    </dependency>
   </dependencies>
 
   <build>
+    <testSourceDirectory>test/java</testSourceDirectory>
+    <testResources>
+      <testResource>
+        <directory>test/resources</directory>
+      </testResource>
+    </testResources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -92,62 +120,13 @@
         <version>0.0.8</version>
         <configuration>
           <mainClass>uds.gui.app.UdsGuiApplication</mainClass>
+          <options>
+            <option>--enable-native-access=javafx.graphics,ALL-UNNAMED</option>
+          </options>
         </configuration>
       </plugin>
     </plugins>
   </build>
 
-  <!-- Windows app-image: mvn -Ppackage-win package  then scripts/package-win.bat -->
-  <profiles>
-    <profile>
-      <id>package-win</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-dependency-plugin</artifactId>
-            <version>3.8.1</version>
-            <executions>
-              <execution>
-                <id>copy-runtime-deps</id>
-                <phase>package</phase>
-                <goals>
-                  <goal>copy-dependencies</goal>
-                </goals>
-                <configuration>
-                  <outputDirectory>${project.build.directory}/jpackage-input/lib</outputDirectory>
-                  <includeScope>runtime</includeScope>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-antrun-plugin</artifactId>
-            <version>3.1.0</version>
-            <executions>
-              <execution>
-                <id>stage-jpackage-input</id>
-                <phase>package</phase>
-                <goals>
-                  <goal>run</goal>
-                </goals>
-                <configuration>
-                  <target>
-                    <mkdir dir="${project.build.directory}/jpackage-input"/>
-                    <copy file="${project.build.directory}/${project.build.finalName}.jar"
-                          todir="${project.build.directory}/jpackage-input"
-                          overwrite="true"/>
-                    <!-- Class-Path manifest helper for non-modular jpackage classpath mode -->
-                    <echo file="${project.build.directory}/jpackage-input/run-hint.txt"
-                          message="Built by package-win. Launch via jpackage app-image (scripts/package-win.bat)."/>
-                  </target>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
+  <!-- Optional Windows app-image: doc/tools/package-win.bat -->
 </project>
