@@ -28,9 +28,18 @@ if (-not (Test-Path $sessionDir)) { New-Item -ItemType Directory -Path $sessionD
 attrib +H $sessionDir 2>$null | Out-Null
 
 function Get-JavaMajor([string]$javaExe) {
-    $verLine = & $javaExe -version 2>&1 | Select-String -Pattern 'version' | Select-Object -First 1
+    # java -version writes to stderr; with $ErrorActionPreference=Stop that becomes a terminating error.
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $raw = & $javaExe -version 2>&1 | ForEach-Object { "$_" }
+    } finally {
+        $ErrorActionPreference = $prev
+    }
+    $verLine = ($raw | Select-String -Pattern 'version' | Select-Object -First 1)
     if (-not $verLine) { return 0, "" }
-    if ($verLine -match 'version\s+"?([0-9]+)') {
+    $text = "$verLine"
+    if ($text -match 'version\s+"?([0-9]+)') {
         return [int]$Matches[1], $Matches[1]
     }
     return 0, ""
