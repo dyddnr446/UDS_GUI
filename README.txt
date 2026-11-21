@@ -13,21 +13,21 @@ Analysis / AI 조언을 한 화면에서 돌려 볼 수 있습니다.
    - Maven은 없어도 됩니다. 저장소에 mvnw(Maven Wrapper)가 포함되어 있습니다.
 
 2) .env (환경 설정)
-   - 일반적인 프로젝트에서는 .env 를 Git에 올리지 않습니다.
-   - 이 저장소는 과제 제출·채점용이라 .env 를 함께 포함합니다.
-     (클론 후 바로 실행할 수 있도록)
+   - 원래 .env / API 키는 Git에 올리면 안 됩니다.
+   - 이 저장소는 과제 제출·채점용이라 예외적으로 .env 와
+     데모용(무료) UDS_AI_API_KEY 를 함께 넣어 두었습니다.
+     → 클론 후 바로 GUI·AI 조언까지 실행 가능
 
    포함되어 있는 주요 값:
 
      TEST=TRUE
      UDS_DEMO_PASSWORD=...
-     UDS_AI_API_KEY=
+     UDS_AI_API_KEY=...   (과제용 데모 키)
 
    - TEST=TRUE  … 장비 없이 fixture ECU로 동작 (기본·권장)
    - TEST=FALSE … CAN 실장비 자리 (현재 미구현)
    - UDS_DEMO_PASSWORD … Security Access(0x27) 데모 비밀번호
-   - UDS_AI_API_KEY … AI 조언용 (비어 있으면 AI만 비활성)
-     ※ 개인 API 키는 제출본에 넣지 마세요. 필요 시 로컬에서만 채웁니다.
+   - UDS_AI_API_KEY … AI 조언용 Gemini 키 (과제 제출용으로 포함)
    - 카탈로그·픽스처 기본 경로:
        catalog/uds_system_catalog.xlsx
        catalog/uds_guide_catalog.xlsx
