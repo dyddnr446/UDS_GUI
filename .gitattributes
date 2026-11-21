@@ -1,0 +1,6 @@
+# Windows launchers: keep CRLF in the repo object so GitHub ZIP downloads still work in cmd.exe
+*.bat -text
+*.cmd -text
+
+# PowerShell scripts: normalize but check out CRLF on Windows
+*.ps1 text eol=crlf
