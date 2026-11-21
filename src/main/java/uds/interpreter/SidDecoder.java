@@ -1,11 +1,10 @@
 package uds.interpreter;
 
-import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import uds.catalog.load.UdsCatalog;
-import uds.interpreter.DecodeKind;
 
 /** Deep field decode for demo SIDs (FR-07). Security payloads are redacted (NFR-20). */
 public final class SidDecoder {
@@ -16,6 +15,15 @@ public final class SidDecoder {
 
   public static Map<String, String> decodeFields(
       int sidByte, byte[] bytes, DecodeKind kind, UdsCatalog catalog) {
+    return decodeFields(sidByte, bytes, kind, catalog, false);
+  }
+
+  /**
+   * @param revealSecurity when true (Learning mode), seed/key HEX are shown instead of {@link
+   *     #REDACTED}
+   */
+  public static Map<String, String> decodeFields(
+      int sidByte, byte[] bytes, DecodeKind kind, UdsCatalog catalog, boolean revealSecurity) {
     Map<String, String> fields = new LinkedHashMap<>();
     if (bytes == null || bytes.length == 0) {
       return fields;
@@ -32,7 +40,7 @@ public final class SidDecoder {
       case 0x14 -> decodeClearDtc(bytes, kind, fields);
       case 0x19 -> decodeReadDtc(bytes, kind, fields);
       case 0x22, 0x2E -> decodeDid(bytes, kind, fields);
-      case 0x27 -> decodeSecurity(bytes, kind, fields);
+      case 0x27 -> decodeSecurity(bytes, kind, fields, revealSecurity);
       case 0x3E -> decodeTesterPresent(bytes, kind, fields);
       default -> {
         /* leave empty beyond parser-owned names */
@@ -94,24 +102,28 @@ public final class SidDecoder {
       byte[] data = new byte[bytes.length - 3];
       System.arraycopy(bytes, 3, data, 0, data.length);
       fields.put("dataHex", toHex(data));
-      fields.put("dataAscii", toPrintableAscii(data));
+      // Binary DID payloads look like mojibake as ASCII — only show when mostly text.
+      asciiPreview(data).ifPresent(ascii -> fields.put("dataAscii", ascii));
     }
   }
 
-  private static void decodeSecurity(byte[] bytes, DecodeKind kind, Map<String, String> fields) {
+  private static void decodeSecurity(
+      byte[] bytes, DecodeKind kind, Map<String, String> fields, boolean revealSecurity) {
     if (bytes.length >= 2) {
       int access = subValue(bytes[1], true);
       fields.put("accessType", hexByte(access));
       fields.put("securityOperation", (access & 1) == 1 ? "requestSeed" : "sendKey");
     }
     if (bytes.length > 2) {
-      // Never store raw seed/key bytes or HEX (NFR-20).
-      fields.put("securityPayload", REDACTED);
+      byte[] payload = new byte[bytes.length - 2];
+      System.arraycopy(bytes, 2, payload, 0, payload.length);
+      String shown = revealSecurity ? toHex(payload) : REDACTED;
+      fields.put("securityPayload", shown);
       if ((subValue(bytes[1], true) & 1) == 1 && kind == DecodeKind.POSITIVE) {
-        fields.put("seed", REDACTED);
+        fields.put("seed", shown);
       }
       if ((subValue(bytes[1], true) & 1) == 0 && kind == DecodeKind.REQUEST) {
-        fields.put("key", REDACTED);
+        fields.put("key", shown);
       }
     }
   }
@@ -148,7 +160,28 @@ public final class SidDecoder {
     return sb.toString();
   }
 
-  private static String toPrintableAscii(byte[] data) {
-    return new String(data, StandardCharsets.US_ASCII).replaceAll("[\\p{Cntrl}]", ".");
+  /**
+   * Returns an ASCII preview only when at least 75% of bytes are printable ({@code 0x20..0x7E}).
+   * Non-printable bytes become {@code '.'}; otherwise empty (caller should rely on {@code dataHex}).
+   */
+  static Optional<String> asciiPreview(byte[] data) {
+    if (data == null || data.length == 0) {
+      return Optional.empty();
+    }
+    int printable = 0;
+    StringBuilder sb = new StringBuilder(data.length);
+    for (byte b : data) {
+      int v = b & 0xFF;
+      if (v >= 0x20 && v <= 0x7E) {
+        printable++;
+        sb.append((char) v);
+      } else {
+        sb.append('.');
+      }
+    }
+    if (printable * 100 < data.length * 75) {
+      return Optional.empty();
+    }
+    return Optional.of(sb.toString());
   }
 }

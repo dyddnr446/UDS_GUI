@@ -12,7 +12,9 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
@@ -20,6 +22,7 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
@@ -29,14 +32,18 @@ import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.stage.Window;
 import uds.access.AccessOutcome;
 import uds.access.DiagnosticAccessState;
 import uds.catalog.model.DidDefinition;
 import uds.gui.DiagnosticSessionChoice;
+import uds.gui.DtcRow;
+import uds.gui.DtcViewModel;
 import uds.gui.ReadDataViewModel;
 import uds.gui.WriteDataViewModel;
 import uds.gui.WriteDataViewModel.WritePipelineSnapshot;
+import uds.read.DtcPipelineSnapshot;
 import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -61,6 +68,7 @@ import uds.read.FindingDetailCode;
 import uds.read.ReadDataResult;
 import uds.read.ReadStatus;
 import uds.write.WriteResult;
+import uds.write.WriteStatus;
 
 /** JavaFX entry — diagnostic shell (TEST offline / future CAN) with Control Bar + gated tabs. */
 public final class UdsGuiApplication extends Application {
@@ -71,6 +79,7 @@ public final class UdsGuiApplication extends Application {
   private TabPane tabs;
   private boolean testMode;
   private String demoPassword;
+  private Label dtcStatusBadge;
 
   @Override
   public void start(Stage stage) throws Exception {
@@ -107,15 +116,21 @@ public final class UdsGuiApplication extends Application {
     Tab interpreter = interpreterTab();
     Tab read = readTab();
     Tab write = writeTab();
+    Tab dtc = dtcTab();
     Tab ai = aiTab();
 
     read.disableProperty().bind(main.readTabEnabledProperty().not());
     write.disableProperty().bind(main.writeTabEnabledProperty().not());
+    dtc.disableProperty().bind(main.dtcTabEnabledProperty().not());
     ai.disableProperty().bind(main.aiTabEnabledProperty().not());
 
     tabs = new TabPane();
+    tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+    for (Tab t : List.of(interpreter, read, write, dtc, ai)) {
+      t.setClosable(false);
+    }
     // Analysis Session save/restore UI removed — in-memory store still used by AI/tests.
-    tabs.getTabs().addAll(interpreter, read, write, ai);
+    tabs.getTabs().addAll(interpreter, read, write, dtc, ai);
 
     main.requestedTabIndexProperty()
         .addListener(
@@ -414,10 +429,13 @@ public final class UdsGuiApplication extends Application {
     table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
     table.getStyleClass().add("interp-table");
 
-    TableColumn<InterpreterRow, String> timeCol = new TableColumn<>("Time");
+    TableColumn<InterpreterRow, String> timeCol = new TableColumn<>();
+    Label timeHeader = new Label("Time");
+    timeHeader.setTooltip(new Tooltip("HH:mm:ss.SSS (local)  ·  sample: +elapsed s"));
+    timeCol.setGraphic(timeHeader);
     timeCol.setCellValueFactory(c -> new ReadOnlyStringWrapper(c.getValue().time()));
-    timeCol.setMinWidth(70);
-    timeCol.setPrefWidth(80);
+    timeCol.setMinWidth(100);
+    timeCol.setPrefWidth(110);
 
     TableColumn<InterpreterRow, String> dirCol = new TableColumn<>("Dir");
     dirCol.setCellValueFactory(c -> new ReadOnlyStringWrapper(c.getValue().dir()));
@@ -688,19 +706,21 @@ public final class UdsGuiApplication extends Application {
     dids.getItems().addListener((javafx.collections.ListChangeListener<String>) c -> refreshSpec.run());
     refreshSpec.run();
 
-    Label rawValue = new Label("(none)");
+    Label rawRequest = new Label("(none)");
+    Label rawResponse = new Label("(none)");
     Label physicalValue = new Label("(none)");
     Label statusBadge = new Label("—");
-    rawValue.getStyleClass().add("kv-value");
-    physicalValue.getStyleClass().add("kv-value");
-    rawValue.setWrapText(true);
-    physicalValue.setWrapText(true);
+    for (Label v : new Label[] {rawRequest, rawResponse, physicalValue}) {
+      v.getStyleClass().add("kv-value");
+      v.setWrapText(true);
+    }
     statusBadge.getStyleClass().addAll("status-badge");
 
     GridPane resultGrid = kvGrid();
-    addKvRow(resultGrid, 0, "Raw Response", rawValue);
-    addKvRow(resultGrid, 1, "Physical Value", physicalValue);
-    addKvRow(resultGrid, 2, "Status", statusBadge);
+    addKvRow(resultGrid, 0, "Raw Request", rawRequest);
+    addKvRow(resultGrid, 1, "Raw Response", rawResponse);
+    addKvRow(resultGrid, 2, "Physical Value", physicalValue);
+    addKvRow(resultGrid, 3, "Status", statusBadge);
 
     Label resultTitle = new Label("Read Result");
     resultTitle.getStyleClass().add("inspector-title");
@@ -716,7 +736,7 @@ public final class UdsGuiApplication extends Application {
             main.read().selectDid(dids.getValue());
           }
           ReadDataResult r = main.readSelectedAndRecord();
-          applyReadResult(r, rawValue, physicalValue, statusBadge);
+          applyReadResult(r, rawRequest, rawResponse, physicalValue, statusBadge);
         });
 
     VBox inputSection = new VBox(8, new Label("DID"), dids, read, emptyHint);
@@ -752,16 +772,21 @@ public final class UdsGuiApplication extends Application {
   }
 
   private static void applyReadResult(
-      ReadDataResult r, Label rawValue, Label physicalValue, Label statusBadge) {
+      ReadDataResult r,
+      Label rawRequest,
+      Label rawResponse,
+      Label physicalValue,
+      Label statusBadge) {
     if (r == null) {
-      rawValue.setText("(none)");
+      rawRequest.setText("(none)");
+      rawResponse.setText("(none)");
       physicalValue.setText("(none)");
       statusBadge.setText("—");
       statusBadge.getStyleClass().setAll("status-badge");
       return;
     }
-    String hex = r.responseHex();
-    rawValue.setText(hex == null || hex.isBlank() ? "(none)" : hex);
+    rawRequest.setText(blankToDash(r.requestHex()));
+    rawResponse.setText(blankToDash(r.responseHex()));
 
     ReadStatus status = r.status();
     statusBadge.getStyleClass().setAll("status-badge");
@@ -797,6 +822,37 @@ public final class UdsGuiApplication extends Application {
 
   private static String blankToDash(String value) {
     return value == null || value.isBlank() ? "(none)" : value;
+  }
+
+  private static void applyWriteRawResult(
+      WriteResult r,
+      Label rawRequest,
+      Label rawEncoded,
+      Label rawResponse,
+      Label statusBadge) {
+    if (r == null) {
+      rawRequest.setText("(none)");
+      rawEncoded.setText("(none)");
+      rawResponse.setText("(none)");
+      statusBadge.setText("—");
+      statusBadge.getStyleClass().setAll("status-badge");
+      return;
+    }
+    rawRequest.setText(blankToDash(r.requestHex()));
+    rawEncoded.setText(blankToDash(r.encodedHex()));
+    rawResponse.setText(blankToDash(r.responseHex()));
+    statusBadge.getStyleClass().setAll("status-badge");
+    WriteStatus st = r.status();
+    statusBadge.setText(st == null ? "—" : st.name());
+    if (st == WriteStatus.ACCEPTED) {
+      statusBadge.getStyleClass().add("status-badge-normal");
+    } else if (st == WriteStatus.ACCESS_DENIED || st == WriteStatus.REJECTED) {
+      statusBadge.getStyleClass().add("status-badge-error");
+    } else if (st == WriteStatus.VALIDATION_ERROR_TYPE || st == WriteStatus.VALIDATION_ERROR_RANGE) {
+      statusBadge.getStyleClass().add("status-badge-warning");
+    } else {
+      statusBadge.getStyleClass().add("status-badge-error");
+    }
   }
 
   private Tab writeTab() {
@@ -891,6 +947,22 @@ public final class UdsGuiApplication extends Application {
     failureReason.setVisible(false);
     failureReason.setManaged(false);
 
+    Label rawRequest = new Label("(none)");
+    Label rawEncoded = new Label("(none)");
+    Label rawResponse = new Label("(none)");
+    Label statusBadge = new Label("—");
+    for (Label v : new Label[] {rawRequest, rawEncoded, rawResponse}) {
+      v.getStyleClass().add("kv-value");
+      v.setWrapText(true);
+    }
+    statusBadge.getStyleClass().addAll("status-badge");
+
+    GridPane rawGrid = kvGrid();
+    addKvRow(rawGrid, 0, "Raw Request", rawRequest);
+    addKvRow(rawGrid, 1, "Encoded Payload", rawEncoded);
+    addKvRow(rawGrid, 2, "Raw Response", rawResponse);
+    addKvRow(rawGrid, 3, "Status", statusBadge);
+
     Label lastAcceptedBox = new Label(main.write().formatLastAccepted());
     lastAcceptedBox.getStyleClass().add("last-accepted-box");
     lastAcceptedBox.setWrapText(true);
@@ -899,7 +971,7 @@ public final class UdsGuiApplication extends Application {
     Label resultTitle = new Label("Write Pipeline");
     resultTitle.getStyleClass().add("inspector-title");
     VBox resultCard =
-        new VBox(10, resultTitle, pipelineRow, failureReason, lastAcceptedBox);
+        new VBox(10, resultTitle, pipelineRow, failureReason, rawGrid, lastAcceptedBox);
     resultCard.getStyleClass().add("inspector-card");
     resultCard.setMaxWidth(writeWidth);
 
@@ -921,6 +993,7 @@ public final class UdsGuiApplication extends Application {
           failureReason.setText(fail ? pipe.failureReason() : "");
           failureReason.setVisible(fail);
           failureReason.setManaged(fail);
+          applyWriteRawResult(r, rawRequest, rawEncoded, rawResponse, statusBadge);
           lastAcceptedBox.setText(main.write().formatLastAccepted());
         });
 
@@ -936,6 +1009,268 @@ public final class UdsGuiApplication extends Application {
     StackPane wrap = new StackPane(form);
     wrap.setAlignment(Pos.TOP_LEFT);
     return new Tab("WriteData", wrap);
+  }
+
+  private Tab dtcTab() {
+    final double comboW = 260;
+    DtcViewModel dtcVm = main.dtc();
+
+    Label hint = new Label("Unlock(Extended) 후 DTC를 읽거나 지웁니다. Offline fixture · Status Mask 필터.");
+    hint.getStyleClass().add("control-label");
+    hint.setWrapText(true);
+
+    ComboBox<DtcViewModel.Option> subFn = new ComboBox<>(dtcVm.subFunctionOptions());
+    subFn.setValue(dtcVm.selectedSubFunction());
+    subFn.setPrefWidth(comboW);
+    subFn.setMaxWidth(comboW);
+    ComboBox<DtcViewModel.Option> mask = new ComboBox<>(dtcVm.statusMaskOptions());
+    mask.setValue(dtcVm.selectedStatusMask());
+    mask.setPrefWidth(comboW);
+    mask.setMaxWidth(comboW);
+    subFn.valueProperty().addListener((o, a, n) -> dtcVm.setSelectedSubFunction(n));
+    mask.valueProperty().addListener((o, a, n) -> dtcVm.setSelectedStatusMask(n));
+
+    Button readDtc = new Button("Read DTC (0x19)");
+    readDtc.getStyleClass().add("dtc-btn-primary");
+
+    ComboBox<DtcViewModel.Option> group = new ComboBox<>(dtcVm.groupOptions());
+    group.setValue(dtcVm.selectedGroup());
+    group.setPrefWidth(comboW);
+    group.setMaxWidth(comboW);
+    group.valueProperty().addListener((o, a, n) -> dtcVm.setSelectedGroup(n));
+
+    Button clearDtc = new Button("Clear DTC (0x14)");
+    clearDtc.getStyleClass().add("dtc-btn-danger");
+
+    Label badgeGuard = pipelineBadge("세션/보안 (Guard)", "—");
+    Label badgeExchange = pipelineBadge("ECU 응답 (Exchange)", "—");
+    Label badgeParser = pipelineBadge("DTC 파싱 (Parser)", "—");
+    shrinkPipelineBadge(badgeGuard);
+    shrinkPipelineBadge(badgeExchange);
+    shrinkPipelineBadge(badgeParser);
+
+    Label lastActionBox = new Label();
+    lastActionBox.getStyleClass().add("last-accepted-box");
+    lastActionBox.setWrapText(true);
+    lastActionBox.textProperty().bind(dtcVm.lastActionProperty());
+
+    Label statusBadge = new Label("—");
+    statusBadge.getStyleClass().addAll("status-badge");
+    statusBadge.textProperty().bind(dtcVm.statusLabelProperty());
+    this.dtcStatusBadge = statusBadge;
+
+    Label nrcValue = new Label("—");
+    Label rawReq = new Label("—");
+    Label rawRsp = new Label("—");
+    Label countLabel = new Label("—");
+    for (Label v : new Label[] {nrcValue, rawReq, rawRsp, countLabel}) {
+      v.getStyleClass().add("kv-value");
+      v.setWrapText(true);
+    }
+    nrcValue.textProperty().bind(dtcVm.nrcTextProperty());
+    rawReq.textProperty().bind(dtcVm.rawRequestProperty());
+    rawRsp.textProperty().bind(dtcVm.rawResponseProperty());
+    countLabel.textProperty().bind(dtcVm.dtcCountTextProperty());
+
+    Runnable afterExchange =
+        () -> {
+          if (testMode) {
+            main.refreshInterpreterLive();
+          }
+          applyDtcStatusBadgeStyle();
+          DtcPipelineSnapshot pipe = dtcVm.lastPipeline();
+          applyPipelineBadge(
+              badgeGuard, "세션/보안 (Guard)", pipe.guardLabel(), pipe.guardStyle());
+          applyPipelineBadge(
+              badgeExchange, "ECU 응답 (Exchange)", pipe.exchangeLabel(), pipe.exchangeStyle());
+          applyPipelineBadge(
+              badgeParser, "DTC 파싱 (Parser)", pipe.parserLabel(), pipe.parserStyle());
+          shrinkPipelineBadge(badgeGuard);
+          shrinkPipelineBadge(badgeExchange);
+          shrinkPipelineBadge(badgeParser);
+        };
+
+    readDtc.setOnAction(
+        e -> {
+          dtcVm.readDtc();
+          afterExchange.run();
+        });
+    clearDtc.setOnAction(
+        e -> {
+          Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+          confirm.setTitle("Clear DTC");
+          confirm.setHeaderText("고장 코드(DTC)를 지우겠습니까?");
+          confirm.setContentText("실차에서는 고장 기록이 삭제됩니다. Offline에서도 fixture 목록이 비워집니다.");
+          confirm
+              .showAndWait()
+              .ifPresent(
+                  btn -> {
+                    if (btn == ButtonType.OK) {
+                      dtcVm.clearDtc();
+                      afterExchange.run();
+                    }
+                  });
+        });
+    Label readPreview = new Label();
+    Label readBytes = new Label();
+    Label clearPreview = new Label();
+    Label clearBytes = new Label();
+    Label access = new Label();
+    for (Label v : new Label[] {readPreview, readBytes, clearPreview, clearBytes, access}) {
+      v.getStyleClass().add("kv-value");
+      v.setWrapText(true);
+    }
+    readPreview.textProperty().bind(dtcVm.requestPreviewProperty());
+    readBytes.textProperty().bind(dtcVm.byteMeaningProperty());
+    clearPreview.textProperty().bind(dtcVm.clearPreviewProperty());
+    clearBytes.textProperty().bind(dtcVm.clearByteMeaningProperty());
+    access.textProperty().bind(dtcVm.accessRequirementProperty());
+
+    GridPane specGrid = kvGrid();
+    addKvRow(specGrid, 0, "Read Preview", readPreview);
+    addKvRow(specGrid, 1, "Read Bytes", readBytes);
+    addKvRow(specGrid, 2, "Clear Preview", clearPreview);
+    addKvRow(specGrid, 3, "Clear Bytes", clearBytes);
+    addKvRow(specGrid, 4, "Access", access);
+    Label specTitle = new Label("DTC Request Specification");
+    specTitle.getStyleClass().add("inspector-title");
+    VBox specCard = new VBox(6, specTitle, specGrid);
+    specCard.getStyleClass().addAll("inspector-card", "dtc-compact-card");
+    VBox.setVgrow(specCard, Priority.NEVER);
+
+    HBox pipelineRow = new HBox(8, badgeGuard, badgeExchange, badgeParser);
+    pipelineRow.setAlignment(Pos.CENTER_LEFT);
+    Label pipeTitle = new Label("DTC Pipeline");
+    pipeTitle.getStyleClass().add("inspector-title");
+    VBox pipeCard = new VBox(6, pipeTitle, pipelineRow, lastActionBox);
+    pipeCard.getStyleClass().addAll("inspector-card", "dtc-compact-card");
+
+    VBox leftCol = new VBox(10, specCard, pipeCard);
+    leftCol.setMinWidth(360);
+    leftCol.setPrefWidth(420);
+    HBox.setHgrow(leftCol, Priority.SOMETIMES);
+
+    TableView<DtcRow> table = new TableView<>(dtcVm.rows());
+    table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+    table.setPrefHeight(220);
+    table.setMinHeight(160);
+    table.setPlaceholder(new Label("Read DTC 를 누르면 고장 코드 목록이 여기에 표시됩니다."));
+    TableColumn<DtcRow, String> colCode = new TableColumn<>("DTC Code");
+    colCode.setMinWidth(80);
+    colCode.setCellValueFactory(c -> c.getValue().codeProperty());
+    TableColumn<DtcRow, String> colName = new TableColumn<>("설명 (교육용)");
+    colName.setMinWidth(140);
+    colName.setCellValueFactory(c -> c.getValue().nameProperty());
+    TableColumn<DtcRow, String> colSt = new TableColumn<>("Status");
+    colSt.setMinWidth(60);
+    colSt.setCellValueFactory(c -> c.getValue().statusByteProperty());
+    TableColumn<DtcRow, String> colFlags = new TableColumn<>("활성 플래그");
+    colFlags.setMinWidth(120);
+    colFlags.setCellValueFactory(c -> c.getValue().flagsProperty());
+    table.getColumns().addAll(List.of(colCode, colName, colSt, colFlags));
+    VBox.setVgrow(table, Priority.ALWAYS);
+
+    Label selectedDetail = new Label("표를 클릭하면 선택한 DTC 설명이 여기에 표시됩니다.");
+    selectedDetail.getStyleClass().add("kv-value");
+    selectedDetail.setWrapText(true);
+    selectedDetail.setStyle("-fx-font-size: 13px; -fx-font-weight: bold;");
+    table
+        .getSelectionModel()
+        .selectedItemProperty()
+        .addListener(
+            (obs, oldRow, row) -> {
+              if (row == null) {
+                selectedDetail.setText("표를 클릭하면 선택한 DTC 설명이 여기에 표시됩니다.");
+                return;
+              }
+              selectedDetail.setText(
+                  row.codeProperty().get()
+                      + "  ·  "
+                      + row.nameProperty().get()
+                      + "\n상태 "
+                      + row.statusByteProperty().get()
+                      + "  →  "
+                      + row.flagsProperty().get());
+            });
+
+    Label emptyHint = new Label();
+    emptyHint.getStyleClass().add("control-label");
+    emptyHint.setWrapText(true);
+    emptyHint.textProperty().bind(dtcVm.emptyHintProperty());
+    emptyHint.visibleProperty().bind(Bindings.isNotEmpty(dtcVm.emptyHintProperty()));
+    emptyHint.managedProperty().bind(emptyHint.visibleProperty());
+
+    GridPane resultGrid = kvGrid();
+    addKvRow(resultGrid, 0, "Status", statusBadge);
+    addKvRow(resultGrid, 1, "NRC", nrcValue);
+    addKvRow(resultGrid, 2, "Raw Request", rawReq);
+    addKvRow(resultGrid, 3, "Raw Response", rawRsp);
+    addKvRow(resultGrid, 4, "Summary", countLabel);
+
+    Label resultTitle = new Label("DTC Result");
+    resultTitle.getStyleClass().add("inspector-title");
+    Label detailTitle = new Label("선택 DTC 설명");
+    detailTitle.getStyleClass().add("kv-key");
+    VBox resultCard =
+        new VBox(6, resultTitle, resultGrid, table, detailTitle, selectedDetail, emptyHint);
+    resultCard.getStyleClass().addAll("inspector-card", "dtc-compact-card");
+    HBox.setHgrow(resultCard, Priority.ALWAYS);
+    resultCard.setMinWidth(420);
+
+    Label subLbl = new Label("Sub-Function");
+    subLbl.getStyleClass().add("kv-key");
+    Label maskLbl = new Label("Status Mask");
+    maskLbl.getStyleClass().add("kv-key");
+    Label groupLbl = new Label("Group of DTC");
+    groupLbl.getStyleClass().add("kv-key");
+
+    HBox readRow = new HBox(10, subLbl, subFn, maskLbl, mask, readDtc);
+    readRow.setAlignment(Pos.CENTER_LEFT);
+    HBox clearRow = new HBox(10, groupLbl, group, clearDtc);
+    clearRow.setAlignment(Pos.CENTER_LEFT);
+
+    VBox controls = new VBox(8, hint, readRow, clearRow);
+    controls.getStyleClass().add("dtc-controls");
+
+    HBox body = new HBox(12, leftCol, resultCard);
+    body.setAlignment(Pos.TOP_LEFT);
+    HBox.setHgrow(resultCard, Priority.ALWAYS);
+
+    VBox form = new VBox(12, controls, body);
+    form.setPadding(new Insets(12, 16, 16, 16));
+    form.getStyleClass().add("dtc-tab-root");
+
+    ScrollPane scroll = new ScrollPane(form);
+    scroll.setFitToWidth(true);
+    scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+    scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+    scroll.getStyleClass().add("dtc-scroll");
+    return new Tab("DTC", scroll);
+  }
+
+  private static void shrinkPipelineBadge(Label badge) {
+    badge.setMinWidth(120);
+    badge.setMaxWidth(150);
+    badge.setPrefWidth(140);
+  }
+
+  private void applyDtcStatusBadgeStyle() {
+    if (dtcStatusBadge == null || main == null || main.dtc() == null) {
+      return;
+    }
+    String status = main.dtc().statusLabelProperty().get();
+    dtcStatusBadge.getStyleClass().setAll("status-badge");
+    if (status == null) {
+      return;
+    }
+    switch (status) {
+      case "POSITIVE" -> dtcStatusBadge.getStyleClass().add("status-badge-normal");
+      case "NEGATIVE", "ACCESS_DENIED", "EMPTY" ->
+          dtcStatusBadge.getStyleClass().add("status-badge-error");
+      default -> {
+        /* keep base */
+      }
+    }
   }
 
   private static Label pipelineBadge(String stage, String state) {
@@ -1207,7 +1542,7 @@ public final class UdsGuiApplication extends Application {
   }
 
   /**
-   * Project / install root that contains the catalog (default {@code catalog/uds_system_catalog.xlsx}).
+   * Project / install root that contains DID/DTC + SID catalog masters under {@code catalog/}.
    * Order: {@code UDS_APP_HOME} (OS or .env) → class/jar location walk-up → {@code user.dir}.
    */
   static Path resolveAppRoot() {
@@ -1237,8 +1572,12 @@ public final class UdsGuiApplication extends Application {
   }
 
   private static boolean looksLikeAppRoot(Path dir) {
-    return dir != null
-        && Files.isRegularFile(dir.resolve("catalog").resolve("uds_system_catalog.xlsx"));
+    if (dir == null) {
+      return false;
+    }
+    Path catalog = dir.resolve("catalog");
+    return Files.isRegularFile(catalog.resolve(uds.catalog.load.CatalogLoader.DEFAULT_DID_DTC_FILE))
+        && Files.isRegularFile(catalog.resolve(uds.catalog.load.CatalogLoader.DEFAULT_SID_FILE));
   }
 
   private static Path detectRootFromCodeSource() {

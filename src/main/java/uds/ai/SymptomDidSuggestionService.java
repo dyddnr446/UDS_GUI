@@ -30,14 +30,12 @@ public final class SymptomDidSuggestionService {
     List<CandidateDid> candidates = new ArrayList<>();
     for (SymptomDidMap row : catalog.getScenario().symptomDidMaps()) {
       if (matches(row, lower)) {
-        String reason =
-            catalog
-                .getSymptomGuide(row.symptomKey())
-                .map(g -> g.reasonKo() == null ? "" : g.reasonKo())
-                .orElse("");
         candidates.add(
             new CandidateDid(
-                normalizeDid(row.didIdHex()), row.priority(), reason, row.symptomKey()));
+                normalizeDid(row.didIdHex()),
+                row.priority(),
+                row.reasonKo() == null ? "" : row.reasonKo(),
+                row.symptomKey()));
       }
     }
     candidates.sort(

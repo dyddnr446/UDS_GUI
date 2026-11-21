@@ -35,8 +35,9 @@ public final class MainViewModel {
 
   public static final int TAB_READ = 1;
   public static final int TAB_WRITE = 2;
-  public static final int TAB_AI = 3;
-  public static final int TAB_ANALYSIS = 4;
+  public static final int TAB_DTC = 3;
+  public static final int TAB_AI = 4;
+  public static final int TAB_ANALYSIS = 5;
 
   /** Backend connection id for TEST=TRUE offline/log mode (UI: Offline Simulation). */
   public static final String INTERFACE_VIRTUAL = "VIRTUAL";
@@ -49,6 +50,7 @@ public final class MainViewModel {
   private final AccessViewModel access;
   private final ReadDataViewModel read;
   private final WriteDataViewModel write;
+  private final DtcViewModel dtc;
   private final InterpreterController interpreter;
   private final AnalysisSessionViewModel analysis;
   private final UiTaskRunner uiTasks;
@@ -60,11 +62,12 @@ public final class MainViewModel {
   private final StringProperty statusSession = new SimpleStringProperty("Session: DEFAULT");
   private final StringProperty statusSecurity = new SimpleStringProperty("Security: LOCKED");
   private final StringProperty statusRedaction =
-      new SimpleStringProperty("0x27 Redaction: ON");
+      new SimpleStringProperty("0x27 Redaction: ON (Learning OFF)");
   private final IntegerProperty requestedTabIndex = new SimpleIntegerProperty(-1);
 
   private final BooleanProperty readTabEnabled = new SimpleBooleanProperty(false);
   private final BooleanProperty writeTabEnabled = new SimpleBooleanProperty(false);
+  private final BooleanProperty dtcTabEnabled = new SimpleBooleanProperty(false);
   private final BooleanProperty aiTabEnabled = new SimpleBooleanProperty(false);
   private final StringProperty transportMessage = new SimpleStringProperty("");
   /** In-memory Seed/Key password reused for later Extended Apply (never logged). */
@@ -104,6 +107,7 @@ public final class MainViewModel {
             session.writeDataService(),
             session.catalog(),
             fixtures);
+    this.dtc = new DtcViewModel(session.dtcService());
     this.interpreter = new InterpreterController(session.interpreter());
     this.analysis = new AnalysisSessionViewModel(session);
     this.ai =
@@ -150,6 +154,10 @@ public final class MainViewModel {
 
   public WriteDataViewModel write() {
     return write;
+  }
+
+  public DtcViewModel dtc() {
+    return dtc;
   }
 
   public InterpreterController interpreter() {
@@ -200,6 +208,10 @@ public final class MainViewModel {
     return writeTabEnabled;
   }
 
+  public BooleanProperty dtcTabEnabledProperty() {
+    return dtcTabEnabled;
+  }
+
   public BooleanProperty aiTabEnabledProperty() {
     return aiTabEnabled;
   }
@@ -211,6 +223,15 @@ public final class MainViewModel {
 
   public String rememberedUnlockPassword() {
     return rememberedUnlockPassword == null ? "" : rememberedUnlockPassword;
+  }
+
+  /** Status bar text for Learning / 0x27 redaction policy. */
+  public void refreshLearningStatus() {
+    if (LearningMode.isEnabled()) {
+      statusRedaction.set("0x27 Learning: ON (local HEX; AI still masked)");
+    } else {
+      statusRedaction.set("0x27 Redaction: ON (Learning OFF)");
+    }
   }
 
   /** Read-only snapshot refresh from Access facade (no Context writes). */
@@ -241,7 +262,7 @@ public final class MainViewModel {
         statusSecurity.set("Security: UNLOCKED");
       }
     }
-    statusRedaction.set("0x27 Redaction: ON");
+    refreshLearningStatus();
 
     boolean unlocked = state == DiagnosticAccessState.EXTENDED_UNLOCKED;
     boolean extended =
@@ -253,6 +274,7 @@ public final class MainViewModel {
     boolean hasWritable = !write.accessibleDidIds().isEmpty();
     readTabEnabled.set(testMode && profileSelected && (hasReadable || extended));
     writeTabEnabled.set(testMode && profileSelected && (hasWritable || unlocked));
+    dtcTabEnabled.set(testMode && profileSelected && unlocked);
     aiTabEnabled.set(testMode && unlocked);
   }
 

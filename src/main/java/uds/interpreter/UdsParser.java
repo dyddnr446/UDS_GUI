@@ -96,7 +96,8 @@ public final class UdsParser {
     SubInfo sub = resolveSubfunction(bytes, svc, catalog);
     Map<String, String> fields =
         new LinkedHashMap<>(
-            SidDecoder.decodeFields(bytes[0] & 0xFF, bytes, DecodeKind.REQUEST, catalog));
+            SidDecoder.decodeFields(
+                bytes[0] & 0xFF, bytes, DecodeKind.REQUEST, catalog, SecurityRevealMode.isEnabled()));
     return new DecodeResult(
         frameRef,
         DecodeKind.REQUEST,
@@ -114,7 +115,12 @@ public final class UdsParser {
     SubInfo sub = resolveSubfunction(bytes, svc, catalog);
     Map<String, String> fields =
         new LinkedHashMap<>(
-            SidDecoder.decodeFields(bytes[0] & 0xFF, bytes, DecodeKind.POSITIVE, catalog));
+            SidDecoder.decodeFields(
+                bytes[0] & 0xFF,
+                bytes,
+                DecodeKind.POSITIVE,
+                catalog,
+                SecurityRevealMode.isEnabled()));
     return new DecodeResult(
         frameRef,
         DecodeKind.POSITIVE,

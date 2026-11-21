@@ -1,10 +1,13 @@
 package uds.fixture;
 
 import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import uds.fixture.Clock;
 import uds.fixture.FixtureRunConfig;
@@ -26,6 +29,8 @@ public final class StatefulFixtureEcuSimulator {
   private final FixtureRepository repository;
   private final String password;
   private final Clock clock;
+  /** Live DTC lists per profile (cleared by 0x14, restored by {@link #resetDtcStore()}). */
+  private final Map<String, List<FixtureDtcEntry>> dtcByProfile = new HashMap<>();
 
   private FixtureRunConfig runConfig;
 
@@ -37,6 +42,32 @@ public final class StatefulFixtureEcuSimulator {
       throw new IllegalArgumentException("demoPassword blank");
     }
     this.clock = Objects.requireNonNull(clock, "clock");
+    resetDtcStore();
+  }
+
+  /** Restore profile seed DTCs (offline demo Reset Fixture DTC). */
+  public void resetDtcStore() {
+    dtcByProfile.clear();
+    for (Map.Entry<String, List<FixtureDtcEntry>> e : FixtureDtcCatalog.seedByProfile().entrySet()) {
+      List<FixtureDtcEntry> copy = new ArrayList<>();
+      for (FixtureDtcEntry d : e.getValue()) {
+        copy.add(d.copy());
+      }
+      dtcByProfile.put(e.getKey(), copy);
+    }
+  }
+
+  /** All seed display names (codeHex → nameKo) for UI hints. */
+  public Map<String, String> dtcNameHints() {
+    return FixtureDtcCatalog.allNameHints();
+  }
+
+  public List<FixtureDtcEntry> dtcStoreSnapshot(String profileId) {
+    return List.copyOf(storeFor(profileId));
+  }
+
+  private List<FixtureDtcEntry> storeFor(String profileId) {
+    return dtcByProfile.computeIfAbsent(profileId, id -> new ArrayList<>());
   }
 
   public void setRunConfig(FixtureRunConfig config) {
@@ -65,6 +96,13 @@ public final class StatefulFixtureEcuSimulator {
         return new byte[0];
       }
       return new byte[] {(byte) 0x7E, (byte) (request[1] & 0x7F)};
+    }
+    // Stateful DTC demo (FR-30) — not scenario-bound.
+    if (request.length >= 1 && (request[0] & 0xFF) == 0x19) {
+      return handleReadDtc(profileId, request);
+    }
+    if (request.length >= 1 && (request[0] & 0xFF) == 0x14) {
+      return handleClearDtc(profileId, request);
     }
     // Default session return (10 01) — always available; Extended (10 03) stays fixture-driven.
     if (request.length >= 2
@@ -146,6 +184,43 @@ public final class StatefulFixtureEcuSimulator {
       return hexToBytes(template);
     }
     return hexToBytes(template);
+  }
+
+  private byte[] handleReadDtc(String profileId, byte[] request) {
+    int sub = request.length >= 2 ? (request[1] & 0x7F) : 0x02;
+    int mask = request.length >= 3 ? (request[2] & 0xFF) : 0xFF;
+    List<FixtureDtcEntry> matched = new ArrayList<>();
+    for (FixtureDtcEntry d : storeFor(profileId)) {
+      if (mask == 0xFF || (d.statusByte() & mask) != 0) {
+        matched.add(d);
+      }
+    }
+    if (sub == 0x01) {
+      int count = matched.size();
+      return new byte[] {
+        0x59, 0x01, (byte) 0xFF, (byte) ((count >> 8) & 0xFF), (byte) (count & 0xFF)
+      };
+    }
+    // reportDTCByStatusMask (0x02)
+    byte[] out = new byte[3 + matched.size() * 4];
+    out[0] = 0x59;
+    out[1] = 0x02;
+    out[2] = (byte) 0xFF;
+    int o = 3;
+    for (FixtureDtcEntry d : matched) {
+      int code = d.code() & 0xFFFFFF;
+      out[o++] = (byte) ((code >> 16) & 0xFF);
+      out[o++] = (byte) ((code >> 8) & 0xFF);
+      out[o++] = (byte) (code & 0xFF);
+      out[o++] = (byte) (d.statusByte() & 0xFF);
+    }
+    return out;
+  }
+
+  private byte[] handleClearDtc(String profileId, byte[] request) {
+    // Accept any group; classroom demo clears all stored DTCs for the profile.
+    storeFor(profileId).clear();
+    return new byte[] {(byte) 0x54};
   }
 
   private static byte[] hexToBytes(String hex) {

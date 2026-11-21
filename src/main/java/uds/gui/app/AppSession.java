@@ -20,6 +20,7 @@ import uds.fixture.FileDiagnosticExchangePort;
 import uds.fixture.FixtureRepository;
 import uds.fixture.StatefulFixtureEcuSimulator;
 import uds.interpreter.UdsInterpreter;
+import uds.read.DtcService;
 import uds.read.ReadDataService;
 import uds.write.WriteDataService;
 
@@ -35,6 +36,7 @@ public final class AppSession {
   private final SessionCapabilityPolicy capabilityPolicy;
   private final ReadDataService readDataService;
   private final WriteDataService writeDataService;
+  private final DtcService dtcService;
   private final UdsInterpreter interpreter;
   private final TesterPresentKeepAlive testerPresentKeepAlive;
   private final Path sessionDir;
@@ -50,6 +52,7 @@ public final class AppSession {
       SessionCapabilityPolicy capabilityPolicy,
       ReadDataService readDataService,
       WriteDataService writeDataService,
+      DtcService dtcService,
       UdsInterpreter interpreter,
       TesterPresentKeepAlive testerPresentKeepAlive,
       Path sessionDir,
@@ -63,30 +66,32 @@ public final class AppSession {
     this.capabilityPolicy = capabilityPolicy;
     this.readDataService = readDataService;
     this.writeDataService = writeDataService;
+    this.dtcService = dtcService;
     this.interpreter = interpreter;
     this.testerPresentKeepAlive = testerPresentKeepAlive;
     this.sessionDir = sessionDir;
     this.analysisSessionId = analysisSessionId;
   }
 
+  /** Open from a catalog directory containing DID/DTC + SID masters. */
   public static AppSession open(
-      Path catalogXlsx, String demoPassword, Path outputsRoot, String analysisSessionId)
+      Path catalogDir, String demoPassword, Path outputsRoot, String analysisSessionId)
       throws Exception {
+    Path dir = catalogDir.toAbsolutePath().normalize();
     Path fixture =
-        catalogXlsx
-            .toAbsolutePath()
-            .normalize()
-            .getParent()
-            .getParent()
-            .resolve("test")
-            .resolve("fixtures")
-            .resolve("uds_fixture_scenarios.xlsx");
-    return open(catalogXlsx, null, fixture, demoPassword, outputsRoot, analysisSessionId);
+        dir.getParent().resolve("fixtures").resolve("uds_fixture_scenarios.xlsx");
+    return open(
+        dir.resolve(CatalogLoader.DEFAULT_DID_DTC_FILE),
+        dir.resolve(CatalogLoader.DEFAULT_SID_FILE),
+        fixture,
+        demoPassword,
+        outputsRoot,
+        analysisSessionId);
   }
 
   public static AppSession open(
-      Path catalogXlsx,
-      Path guideXlsx,
+      Path didDtcXlsx,
+      Path sidXlsx,
       Path fixtureXlsx,
       String demoPassword,
       Path outputsRoot,
@@ -95,10 +100,9 @@ public final class AppSession {
     Objects.requireNonNull(analysisSessionId, "analysisSessionId");
     Objects.requireNonNull(demoPassword, "demoPassword");
     Objects.requireNonNull(fixtureXlsx, "fixtureXlsx");
-    UdsCatalog catalog =
-        guideXlsx == null
-            ? CatalogLoader.load(catalogXlsx)
-            : CatalogLoader.load(catalogXlsx, guideXlsx);
+    Objects.requireNonNull(didDtcXlsx, "didDtcXlsx");
+    Objects.requireNonNull(sidXlsx, "sidXlsx");
+    UdsCatalog catalog = CatalogLoader.load(didDtcXlsx, sidXlsx);
     FixtureRepository repository = FixtureRepository.load(fixtureXlsx);
     StatefulFixtureEcuSimulator simulator =
         new StatefulFixtureEcuSimulator(repository, demoPassword, new SystemClock());
@@ -128,6 +132,11 @@ public final class AppSession {
         new ReadDataService(context, guard, catalog, coordinator, analysisSessionId);
     WriteDataService writeDataService =
         new WriteDataService(context, guard, catalog, coordinator, analysisSessionId);
+    DtcService dtcService =
+        new DtcService(context, guard, coordinator, catalog, analysisSessionId);
+    for (var e : simulator.dtcNameHints().entrySet()) {
+      dtcService.putNameHint(e.getKey(), e.getValue());
+    }
     UdsInterpreter interpreter = new UdsInterpreter(catalog);
     return new AppSession(
         catalog,
@@ -139,6 +148,7 @@ public final class AppSession {
         capabilityPolicy,
         readDataService,
         writeDataService,
+        dtcService,
         interpreter,
         keepAlive,
         sessionDir,
@@ -152,8 +162,8 @@ public final class AppSession {
     config.requireCatalogExists();
     config.requireFixtureExists();
     return open(
-        config.catalogPath(),
-        config.guideCatalogPath(),
+        config.didDtcCatalogPath(),
+        config.sidCatalogPath(),
         config.fixturePath(),
         config.demoPassword(),
         outputsRoot,
@@ -176,6 +186,11 @@ public final class AppSession {
     return filePort;
   }
 
+  /** Offline demo: restore seed DTCs after Clear. */
+  public void resetFixtureDtc() {
+    filePort.resetFixtureDtc();
+  }
+
   public SafeExchangeRecorder recorder() {
     return recorder;
   }
@@ -194,6 +209,10 @@ public final class AppSession {
 
   public WriteDataService writeDataService() {
     return writeDataService;
+  }
+
+  public DtcService dtcService() {
+    return dtcService;
   }
 
   public UdsInterpreter interpreter() {

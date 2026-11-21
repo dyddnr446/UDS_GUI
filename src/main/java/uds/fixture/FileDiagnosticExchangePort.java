@@ -30,6 +30,11 @@ public final class FileDiagnosticExchangePort implements DiagnosticExchangePort 
     return simulator;
   }
 
+  /** Offline demo: restore seed DTCs after Clear. */
+  public void resetFixtureDtc() {
+    simulator.resetDtcStore();
+  }
+
   @Override
   public ExchangeResponse exchange(ExchangeRequest request) {
     Objects.requireNonNull(request, "request");

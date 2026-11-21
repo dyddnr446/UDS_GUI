@@ -22,14 +22,6 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import uds.catalog.model.ControllerProfile;
 import uds.catalog.model.DidProfileSupport;
-import uds.catalog.model.ControllerProfileGuideMetadata;
-import uds.catalog.model.DidGuideMetadata;
-import uds.catalog.model.DtcStatusBitGuideMetadata;
-import uds.catalog.model.LayoutGuideMetadata;
-import uds.catalog.model.NrcGuideMetadata;
-import uds.catalog.model.ServiceGuideMetadata;
-import uds.catalog.model.SubFunctionGuideMetadata;
-import uds.catalog.model.SymptomGuideMetadata;
 import uds.catalog.model.DidDefinition;
 import uds.catalog.model.SymptomDidMap;
 import uds.catalog.model.DtcStatusBitDefinition;
@@ -42,52 +34,61 @@ import uds.fixture.ReadScenario;
 import uds.fixture.WriteScenario;
 
 /**
- * Loads {@code uds_system_catalog.xlsx} (required) and optionally joins {@code
- * uds_guide_catalog.xlsx}. Apache POI types never leave this class (FR-22).
+ * Loads DID/DTC + SID master workbooks. Apache POI types never leave this class (FR-22).
  */
 public final class CatalogLoader {
 
-  public static final String DEFAULT_SYSTEM_FILE = "uds_system_catalog.xlsx";
-  public static final String DEFAULT_GUIDE_FILE = "uds_guide_catalog.xlsx";
+  public static final String DEFAULT_DID_DTC_FILE = "uds_did_dtc_catalog.xlsx";
+  public static final String DEFAULT_SID_FILE = "uds_sid_catalog.xlsx";
 
   private static final DataFormatter FORMATTER = new DataFormatter(Locale.ROOT);
 
   private CatalogLoader() {}
 
-  /**
-   * Load system workbook; guide path is auto-resolved (catalog sibling, then legacy {@code
-   * doc/guide/}) with soft-fail if missing.
-   */
-  public static UdsCatalog load(Path systemXlsxPath) throws IOException {
-    return load(systemXlsxPath, resolveGuidePath(systemXlsxPath));
+  /** Load both masters from a catalog directory. */
+  public static UdsCatalog loadFromCatalogDir(Path catalogDir) throws IOException {
+    Path dir = catalogDir.toAbsolutePath().normalize();
+    return load(dir.resolve(DEFAULT_DID_DTC_FILE), dir.resolve(DEFAULT_SID_FILE));
   }
 
-  public static UdsCatalog load(Path systemXlsxPath, Path guideXlsxPath) throws IOException {
-    String catalogVersion = sha256Hex(Files.readAllBytes(systemXlsxPath));
-    StandardCatalog standard;
-    PayloadCatalog payload;
-    EcuConfigCatalog ecuConfig;
-    ScenarioCatalog scenario;
-    try (InputStream in = Files.newInputStream(systemXlsxPath);
+  /** Load DID/DTC + SID masters. */
+  public static UdsCatalog load(Path didDtcXlsxPath, Path sidXlsxPath) throws IOException {
+    byte[] didBytes = Files.readAllBytes(didDtcXlsxPath);
+    byte[] sidBytes = Files.readAllBytes(sidXlsxPath);
+    byte[] combined = new byte[didBytes.length + sidBytes.length];
+    System.arraycopy(didBytes, 0, combined, 0, didBytes.length);
+    System.arraycopy(sidBytes, 0, combined, didBytes.length, sidBytes.length);
+    String catalogVersion = sha256Hex(combined);
+
+    List<ControllerProfile> profiles;
+    List<DidDefinition> dids;
+    List<DidProfileSupport> supports;
+    List<SymptomDidMap> symptoms;
+    List<DtcStatusBitDefinition> dtcBits;
+    try (InputStream in = Files.newInputStream(didDtcXlsxPath);
         Workbook workbook = new XSSFWorkbook(in)) {
-      List<ControllerProfile> profiles =
-          readControllerProfiles(requireSheet(workbook, "ControllerProfiles"));
-      List<DidDefinition> dids = readOemExtensions(requireSheet(workbook, "OemExtensions"));
-      List<DidProfileSupport> supports =
-          readDidProfileSupport(requireSheet(workbook, "DidProfileSupport"));
-      List<SymptomDidMap> symptoms = readSymptomDidMap(requireSheet(workbook, "SymptomDidMap"));
-      Map<String, ServiceDefinition> services = readServices(requireSheet(workbook, "Services"));
-      List<SubFunctionDefinition> subs = readSubFunctions(requireSheet(workbook, "SubFunctions"));
-      Map<String, NrcDefinition> nrcs = readNrcs(requireSheet(workbook, "NRC"));
-      List<DtcStatusBitDefinition> dtcBits =
-          readDtcStatusBits(requireSheet(workbook, "DTCStatusBits"));
-      standard = new StandardCatalog(services, subs, nrcs, dtcBits);
-      payload = new PayloadCatalog(dids);
-      ecuConfig = new EcuConfigCatalog(profiles, supports);
-      scenario = new ScenarioCatalog(symptoms);
+      profiles = readControllerProfiles(requireSheet(workbook, "ControllerProfiles"));
+      dids = readOemExtensions(requireSheet(workbook, "OemExtensions"));
+      supports = readDidProfileSupport(requireSheet(workbook, "DidProfileSupport"));
+      symptoms = readSymptomDidMap(requireSheet(workbook, "SymptomDidMap"));
+      dtcBits = readDtcStatusBits(requireSheet(workbook, "DTCStatusBits"));
     }
-    GuideCatalog guide = loadGuideSoft(guideXlsxPath);
-    return new UdsCatalog(catalogVersion, standard, payload, ecuConfig, scenario, guide);
+
+    Map<String, ServiceDefinition> services;
+    List<SubFunctionDefinition> subs;
+    Map<String, NrcDefinition> nrcs;
+    try (InputStream in = Files.newInputStream(sidXlsxPath);
+        Workbook workbook = new XSSFWorkbook(in)) {
+      services = readServices(requireSheet(workbook, "Services"));
+      subs = readSubFunctions(requireSheet(workbook, "SubFunctions"));
+      nrcs = readNrcs(requireSheet(workbook, "NRC"));
+    }
+
+    StandardCatalog standard = new StandardCatalog(services, subs, nrcs, dtcBits);
+    PayloadCatalog payload = new PayloadCatalog(dids);
+    EcuConfigCatalog ecuConfig = new EcuConfigCatalog(profiles, supports);
+    ScenarioCatalog scenario = new ScenarioCatalog(symptoms);
+    return new UdsCatalog(catalogVersion, standard, payload, ecuConfig, scenario);
   }
 
   /**
@@ -107,74 +108,12 @@ public final class CatalogLoader {
     }
   }
 
-  /**
-   * Prefer sibling of the system file ({@code catalog/uds_guide_catalog.xlsx}), then legacy
-   * {@code doc/guide/} for local process trees.
-   */
-  static Path resolveGuidePath(Path systemXlsxPath) {
-    Path abs = systemXlsxPath.toAbsolutePath().normalize();
-    Path parent = abs.getParent();
-    if (parent != null) {
-      Path sibling = parent.resolve(DEFAULT_GUIDE_FILE);
-      if (Files.isRegularFile(sibling)) {
-        return sibling;
-      }
-    }
-    Path walk = parent;
-    for (int i = 0; i < 8 && walk != null; i++) {
-      Path underDocGuide = walk.resolve("doc").resolve("guide").resolve(DEFAULT_GUIDE_FILE);
-      if (Files.isRegularFile(underDocGuide)) {
-        return underDocGuide;
-      }
-      walk = walk.getParent();
-    }
-    if (parent != null) {
-      return parent.resolve(DEFAULT_GUIDE_FILE);
-    }
-    return Path.of(DEFAULT_GUIDE_FILE);
-  }
-
-  /** Soft-fail: missing/unreadable guide → empty maps (core catalog still works). */
-  private static GuideCatalog loadGuideSoft(Path guideXlsxPath) {
-    if (guideXlsxPath == null || !Files.isRegularFile(guideXlsxPath)) {
-      return GuideCatalog.empty();
-    }
-    try (InputStream in = Files.newInputStream(guideXlsxPath);
-        Workbook workbook = new XSSFWorkbook(in)) {
-      return readGuide(workbook);
-    } catch (Exception ignored) {
-      return GuideCatalog.empty();
-    }
-  }
-
-  private static GuideCatalog readGuide(Workbook workbook) {
-    Map<String, ServiceGuideMetadata> services = readServiceGuides(optionalSheet(workbook, "Services"));
-    Map<String, SubFunctionGuideMetadata> subs =
-        readSubFunctionGuides(optionalSheet(workbook, "SubFunctions"));
-    Map<String, NrcGuideMetadata> nrcs = readNrcGuides(optionalSheet(workbook, "NRC"));
-    Map<Integer, DtcStatusBitGuideMetadata> dtc =
-        readDtcGuides(optionalSheet(workbook, "DTCStatusBits"));
-    Map<String, LayoutGuideMetadata> layouts = new HashMap<>();
-    layouts.putAll(readLayoutGuides(optionalSheet(workbook, "RequestLayout"), "REQUEST"));
-    layouts.putAll(readLayoutGuides(optionalSheet(workbook, "ResponseLayout"), null));
-    Map<String, DidGuideMetadata> dids = readDidGuides(optionalSheet(workbook, "OemExtensions"));
-    Map<String, ControllerProfileGuideMetadata> profiles =
-        readProfileGuides(optionalSheet(workbook, "ControllerProfiles"));
-    Map<String, SymptomGuideMetadata> symptoms =
-        readSymptomGuides(optionalSheet(workbook, "SymptomDidMap"));
-    return new GuideCatalog(services, subs, nrcs, dtc, layouts, dids, profiles, symptoms);
-  }
-
   private static Sheet requireSheet(Workbook workbook, String name) {
     Sheet sheet = workbook.getSheet(name);
     if (sheet == null) {
       throw new IllegalArgumentException("missing sheet: " + name);
     }
     return sheet;
-  }
-
-  private static Sheet optionalSheet(Workbook workbook, String name) {
-    return workbook.getSheet(name);
   }
 
   private static List<ControllerProfile> readControllerProfiles(Sheet sheet) {
@@ -266,7 +205,8 @@ public final class CatalogLoader {
               cell(row, h, "symptom_key"),
               cell(row, h, "keywords_ko"),
               parseHexInt(cell(row, h, "did_id")),
-              intVal(cell(row, h, "priority"), 0)));
+              intVal(cell(row, h, "priority"), 0),
+              cell(row, h, "reason_ko")));
     }
     return out;
   }
@@ -408,199 +348,6 @@ public final class CatalogLoader {
               cell(row, h, "response_kind"),
               cell(row, h, "response_hex"),
               cell(row, h, "expected_status")));
-    }
-    return out;
-  }
-
-  private static Map<String, ServiceGuideMetadata> readServiceGuides(Sheet sheet) {
-    Map<String, ServiceGuideMetadata> out = new HashMap<>();
-    if (sheet == null) {
-      return out;
-    }
-    HeaderMap h = HeaderMap.from(sheet.getRow(0));
-    for (int r = 1; r <= sheet.getLastRowNum(); r++) {
-      Row row = sheet.getRow(r);
-      if (row == null || blank(cell(row, h, "sid"))) {
-        continue;
-      }
-      String sid = normalizeSidHex(cell(row, h, "sid"));
-      out.put(
-          sid,
-          new ServiceGuideMetadata(
-              sid,
-              cell(row, h, "purpose_summary_ko"),
-              cell(row, h, "when_to_use_ko"),
-              cell(row, h, "why_use_ko"),
-              cell(row, h, "typical_flow_ko"),
-              cell(row, h, "session_note"),
-              cell(row, h, "security_note"),
-              cell(row, h, "notes"),
-              cell(row, h, "example_req_hex"),
-              cell(row, h, "example_res_hex")));
-    }
-    return out;
-  }
-
-  private static Map<String, SubFunctionGuideMetadata> readSubFunctionGuides(Sheet sheet) {
-    Map<String, SubFunctionGuideMetadata> out = new HashMap<>();
-    if (sheet == null) {
-      return out;
-    }
-    HeaderMap h = HeaderMap.from(sheet.getRow(0));
-    for (int r = 1; r <= sheet.getLastRowNum(); r++) {
-      Row row = sheet.getRow(r);
-      if (row == null || blank(cell(row, h, "parent_sid"))) {
-        continue;
-      }
-      SubFunctionGuideMetadata g =
-          new SubFunctionGuideMetadata(
-              cell(row, h, "parent_sid"),
-              cell(row, h, "sub_function"),
-              cell(row, h, "response_needed_practice"),
-              cell(row, h, "params_summary"),
-              cell(row, h, "when_to_use_ko"),
-              cell(row, h, "why_use_ko"),
-              cell(row, h, "notes"));
-      out.put(g.joinKey(), g);
-    }
-    return out;
-  }
-
-  private static Map<String, NrcGuideMetadata> readNrcGuides(Sheet sheet) {
-    Map<String, NrcGuideMetadata> out = new HashMap<>();
-    if (sheet == null) {
-      return out;
-    }
-    HeaderMap h = HeaderMap.from(sheet.getRow(0));
-    for (int r = 1; r <= sheet.getLastRowNum(); r++) {
-      Row row = sheet.getRow(r);
-      if (row == null || blank(cell(row, h, "code"))) {
-        continue;
-      }
-      String code = cell(row, h, "code");
-      out.put(
-          code,
-          new NrcGuideMetadata(
-              code,
-              cell(row, h, "meaning_ko"),
-              cell(row, h, "typical_services"),
-              cell(row, h, "when_appears_ko"),
-              cell(row, h, "what_to_check_ko"),
-              cell(row, h, "notes")));
-    }
-    return out;
-  }
-
-  private static Map<Integer, DtcStatusBitGuideMetadata> readDtcGuides(Sheet sheet) {
-    Map<Integer, DtcStatusBitGuideMetadata> out = new HashMap<>();
-    if (sheet == null) {
-      return out;
-    }
-    HeaderMap h = HeaderMap.from(sheet.getRow(0));
-    for (int r = 1; r <= sheet.getLastRowNum(); r++) {
-      Row row = sheet.getRow(r);
-      if (row == null || blank(cell(row, h, "bit"))) {
-        continue;
-      }
-      int bit = intVal(cell(row, h, "bit"), 0);
-      out.put(
-          bit,
-          new DtcStatusBitGuideMetadata(
-              bit, cell(row, h, "meaning_ko"), cell(row, h, "check_point_ko")));
-    }
-    return out;
-  }
-
-  private static Map<String, LayoutGuideMetadata> readLayoutGuides(Sheet sheet, String forceKind) {
-    Map<String, LayoutGuideMetadata> out = new HashMap<>();
-    if (sheet == null) {
-      return out;
-    }
-    HeaderMap h = HeaderMap.from(sheet.getRow(0));
-    for (int r = 1; r <= sheet.getLastRowNum(); r++) {
-      Row row = sheet.getRow(r);
-      String marker =
-          blank(cell(row, h, "sid")) ? cell(row, h, "sid_or_marker") : cell(row, h, "sid");
-      if (row == null || blank(marker)) {
-        continue;
-      }
-      String kind = forceKind != null ? forceKind : cell(row, h, "kind");
-      LayoutGuideMetadata g =
-          new LayoutGuideMetadata(
-              kind,
-              marker,
-              cell(row, h, "example_hex"),
-              cell(row, h, "when_you_need_this_ko"),
-              cell(row, h, "notes"));
-      out.put(g.joinKey(), g);
-    }
-    return out;
-  }
-
-  private static Map<String, DidGuideMetadata> readDidGuides(Sheet sheet) {
-    Map<String, DidGuideMetadata> out = new HashMap<>();
-    if (sheet == null) {
-      return out;
-    }
-    HeaderMap h = HeaderMap.from(sheet.getRow(0));
-    for (int r = 1; r <= sheet.getLastRowNum(); r++) {
-      Row row = sheet.getRow(r);
-      if (row == null || blank(cell(row, h, "id"))) {
-        continue;
-      }
-      String id = cell(row, h, "id");
-      out.put(
-          id,
-          new DidGuideMetadata(
-              id,
-              cell(row, h, "speed_basis"),
-              cell(row, h, "source_ref"),
-              cell(row, h, "example"),
-              cell(row, h, "when_to_use_ko"),
-              cell(row, h, "why_use_ko"),
-              cell(row, h, "notes")));
-    }
-    return out;
-  }
-
-  private static Map<String, ControllerProfileGuideMetadata> readProfileGuides(Sheet sheet) {
-    Map<String, ControllerProfileGuideMetadata> out = new HashMap<>();
-    if (sheet == null) {
-      return out;
-    }
-    HeaderMap h = HeaderMap.from(sheet.getRow(0));
-    for (int r = 1; r <= sheet.getLastRowNum(); r++) {
-      Row row = sheet.getRow(r);
-      if (row == null || blank(cell(row, h, "profile_id"))) {
-        continue;
-      }
-      String id = cell(row, h, "profile_id");
-      out.put(
-          id,
-          new ControllerProfileGuideMetadata(
-              id,
-              cell(row, h, "speed_basis"),
-              cell(row, h, "telemetry_reference"),
-              cell(row, h, "notes")));
-    }
-    return out;
-  }
-
-  private static Map<String, SymptomGuideMetadata> readSymptomGuides(Sheet sheet) {
-    Map<String, SymptomGuideMetadata> out = new HashMap<>();
-    if (sheet == null) {
-      return out;
-    }
-    HeaderMap h = HeaderMap.from(sheet.getRow(0));
-    for (int r = 1; r <= sheet.getLastRowNum(); r++) {
-      Row row = sheet.getRow(r);
-      if (row == null || blank(cell(row, h, "symptom_key"))) {
-        continue;
-      }
-      String key = cell(row, h, "symptom_key");
-      out.put(
-          key,
-          new SymptomGuideMetadata(key, cell(row, h, "reason_ko"), cell(row, h, "notes")));
     }
     return out;
   }

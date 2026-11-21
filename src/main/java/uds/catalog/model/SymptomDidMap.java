@@ -1,13 +1,13 @@
 package uds.catalog.model;
 
-import uds.catalog.model.DidDefinition;
-
-/** Runtime symptom→DID mapping keys (system catalog). */
-public record SymptomDidMap(String symptomKey, String keywordsKo, int didId, int priority) {
+/** Runtime symptom→DID mapping keys (DID/DTC catalog). */
+public record SymptomDidMap(
+    String symptomKey, String keywordsKo, int didId, int priority, String reasonKo) {
 
   public SymptomDidMap {
     symptomKey = nullToEmpty(symptomKey);
     keywordsKo = nullToEmpty(keywordsKo);
+    reasonKo = nullToEmpty(reasonKo);
   }
 
   public String didIdHex() {

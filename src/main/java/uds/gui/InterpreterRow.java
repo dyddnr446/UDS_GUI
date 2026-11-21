@@ -88,7 +88,12 @@ public final class InterpreterRow {
     }
     String ref = decode.frameRef();
     int slash = ref.indexOf('/');
-    return slash > 0 ? ref.substring(0, slash) : ref;
+    String ts = slash > 0 ? ref.substring(0, slash) : ref;
+    // demo_session.log still uses relative seconds — label them so they are not confused with wall time.
+    if (ts.matches("\\d+(?:\\.\\d+)?")) {
+      return "+" + ts + "s";
+    }
+    return ts;
   }
 
   public String dir() {
@@ -197,6 +202,9 @@ public final class InterpreterRow {
   }
 
   private boolean mustRedactHex() {
+    if (LearningMode.isEnabled()) {
+      return false;
+    }
     if (redacted) {
       return true;
     }

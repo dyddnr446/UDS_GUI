@@ -3,9 +3,7 @@ package uds.exchange;
 import java.util.Locale;
 import java.util.Objects;
 import uds.analysis.SafeExchangeRecorder;
-import uds.exchange.DiagnosticExchangePort;
-import uds.exchange.ExchangeRequest;
-import uds.exchange.ExchangeResponse;
+import uds.interpreter.SecurityRevealMode;
 
 /**
  * Decorator that unifies exchange recording. Records 0x10/0x22/0x2E raw to JSONL; for 0x27 discards
@@ -29,14 +27,17 @@ public final class RecordingDiagnosticExchangePort implements DiagnosticExchange
     ExchangeResponse raw = delegate.exchange(request);
 
     if (sid == 0x27) {
-      // JSONL: never store seed/key. Live CSV: parseable zeroed payload (LogReader is hex-only).
+      // JSONL metadata always masked. Live CSV may keep real HEX in Learning mode (FR-31).
       String maskedRspHex = maskSecurityHex(raw.hex());
-      recorder.recordLiveMaskedPair(
-          maskSecurityHexForCsv(request.hex()), maskSecurityHexForCsv(raw.hex()));
-      return raw.withHexAndRedacted(maskedRspHex, true);
+      String liveReq =
+          SecurityRevealMode.isEnabled() ? request.hex() : maskSecurityHexForCsv(request.hex());
+      String liveRsp =
+          SecurityRevealMode.isEnabled() ? raw.hex() : maskSecurityHexForCsv(raw.hex());
+      recorder.recordLiveMaskedPair(liveReq, liveRsp);
+      return raw.withHexAndRedacted(maskedRspHex, !SecurityRevealMode.isEnabled());
     }
 
-    if (sid == 0x10 || sid == 0x22 || sid == 0x2E) {
+    if (sid == 0x10 || sid == 0x14 || sid == 0x19 || sid == 0x22 || sid == 0x2E) {
       recorder.recordExchange(request, raw);
       return raw;
     }

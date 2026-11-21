@@ -18,7 +18,9 @@ public final class DiagnosticAccessGuard {
 
   public enum Operation {
     READ,
-    WRITE
+    WRITE,
+    /** Session services that need Extended Unlock without a DID (e.g. DTC 0x19/0x14). */
+    SESSION
   }
 
   private final ActiveDiagnosticContext context;
@@ -29,10 +31,25 @@ public final class DiagnosticAccessGuard {
     this.catalog = Objects.requireNonNull(catalog, "catalog");
   }
 
+  /** Unlock-only gate for DTC / session services (no DID membership check). */
+  public GuardDecision checkUnlocked() {
+    AccessSnapshot snap = context.snapshot();
+    if (!snap.profileSelected()) {
+      return GuardDecision.ACCESS_DENIED;
+    }
+    if (snap.accessState() != DiagnosticAccessState.EXTENDED_UNLOCKED) {
+      return GuardDecision.ACCESS_DENIED;
+    }
+    return GuardDecision.ALLOW;
+  }
+
   public GuardDecision check(String didId, Operation operation) {
     AccessSnapshot snap = context.snapshot();
     if (!snap.profileSelected()) {
       return GuardDecision.ACCESS_DENIED;
+    }
+    if (operation == Operation.SESSION) {
+      return checkUnlocked();
     }
 
     String normalized = normalizeDid(didId);

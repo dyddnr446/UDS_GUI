@@ -58,9 +58,9 @@ UDS(Unified Diagnostic Services)는 차량 ECU와 진단기로 대화할 때 쓰
   - 현재 접속 상태(DEFAULT_LOCKED, EXTENDED_UNLOCKED 등)가 표시됩니다.
 
 [탭]
-  Interpreter | ReadData | WriteData | AI Advisor
-  - ReadData / WriteData / AI Advisor 는 세션·보안 상태에 따라
-    비활성화될 수 있습니다. (잠긴 탭을 누르기 전에 Extended Unlock 부터)
+  Interpreter | ReadData | WriteData | DTC | AI Advisor
+  - Read/Write/DTC/AI 는 Unlock 후에 열립니다.
+  - 0x27 seed/key는 GUI·로그·AI 모두 마스킹됩니다 (Learning UI 없음).
 
 
 ================================================================================
@@ -83,7 +83,7 @@ UDS(Unified Diagnostic Services)는 차량 ECU와 진단기로 대화할 때 쓰
        · 비밀번호칸을 비운 채 확인 → 환경변수/ .env 데모 비밀번호 사용
        · 이 제출본 기본값: 1234
    - 성공 시 상태: EXTENDED_UNLOCKED
-   - 이 상태에서 ReadData / WriteData / AI Advisor 탭이 열립니다.
+   - 이 상태에서 ReadData / WriteData / DTC / AI Advisor 탭이 열립니다.
 
 3) 다시 Default 로 돌아가기
    - Session Control → Default Session → Apply
@@ -119,7 +119,11 @@ UDS(Unified Diagnostic Services)는 차량 ECU와 진단기로 대화할 때 쓰
      “권한 검사 → 값 인코딩 → ECU 전송” 단계가 성공했는지 볼 수 있습니다.
    - 범위 밖·타입 오류면 VALIDATION_ERROR 등으로 거절됩니다 (의도된 동작).
 
-4) AI Advisor (증상 기반 진단 조언)
+4) DTC (고장 코드, UDS 0x19 / 0x14)
+   - Unlock 후 Sub-Function·Status Mask 선택 → Read, Clear(확인 창)
+   - Specification / Pipeline / 다중 DTC 테이블로 결과를 확인합니다.
+
+5) AI Advisor (증상 기반 진단 조언)
    - EXTENDED_UNLOCKED 상태에서만 탭이 활성화됩니다.
    - 증상 입력란에 이상 현상·키워드를 적습니다. 예: 급정지, 전압 이상
    - 「원클릭 진단 실행 (Suggest → Read → AI)」 권장:
@@ -143,22 +147,24 @@ UDS(Unified Diagnostic Services)는 차량 ECU와 진단기로 대화할 때 쓰
 5. 상태가 EXTENDED_UNLOCKED 인지 확인
 6. ReadData 탭 → DID 하나 선택 → Read
 7. WriteData 탭 → (선택) 값 입력 후 Write
-8. Interpreter 탭 → 「이번 세션 로그」로 HEX 흐름 확인
-9. AI Advisor 탭 → 증상 입력 → 원클릭 진단 실행
+8. DTC 탭 → Mask 선택 → Read → Clear(확인)
+9. Interpreter → 「이번 세션 로그」
+10. AI Advisor → 증상 입력 → 원클릭 진단 실행
 
 
 ================================================================================
 디렉터리 구조
 ================================================================================
   run.bat                 GUI 실행 (더블클릭)
+  TUTORIAL.txt            카탈로그·UDS 읽는 법 (사람용)
   .env                    과제 제출용 환경 설정 (채점·실행용으로 포함)
   pom.xml / mvnw* / .mvn/ Maven 빌드
   ai_advisor_prompt.txt   AI 시스템·사용자 프롬프트 템플릿
 
   src/                    애플리케이션 Java 소스
-  catalog/                진단 카탈로그 (마스터·가이드 엑셀)
-    uds_system_catalog.xlsx
-    uds_guide_catalog.xlsx
+  catalog/                진단 카탈로그 (마스터 엑셀 2개)
+    uds_did_dtc_catalog.xlsx   (DID·DTC·프로필·증상)
+    uds_sid_catalog.xlsx       (Services·SubFunctions·NRC)
   fixtures/               오프라인 시뮬레이션용 시나리오·샘플 로그
     uds_fixture_scenarios.xlsx
     demo_session.log
