@@ -1,4 +1,4 @@
-# UDS Diagnostic GUI launcher (encoding-safe; use this if run.bat breaks after ZIP download)
+﻿# UDS Diagnostic GUI launcher (encoding-safe; use this if run.bat breaks after ZIP download)
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $Root
@@ -72,8 +72,9 @@ function Resolve-Jdk25 {
     foreach ($javaExe in $candidates | Select-Object -Unique) {
         $major, $ver = Get-JavaMajor $javaExe
         if ($major -ge 25) {
-            $home = Split-Path (Split-Path $javaExe -Parent) -Parent
-            return $home, $ver
+            # Do not use $home — it is a read-only automatic variable in PowerShell.
+            $jdkHome = Split-Path (Split-Path $javaExe -Parent) -Parent
+            return $jdkHome, $ver
         }
     }
     return $null, $null
