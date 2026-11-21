@@ -9,7 +9,7 @@ import java.util.Locale;
 import java.util.Objects;
 import uds.catalog.load.CatalogLoader;
 
-/** Access/read/write fixture scenarios from {@code test/fixtures/*.xlsx} (NFR-13). */
+/** Access/read/write fixture scenarios from {@code fixtures/*.xlsx} (NFR-13). */
 public final class FixtureRepository {
 
   private final List<AccessStep> accessSteps;

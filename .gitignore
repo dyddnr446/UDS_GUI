@@ -1,6 +1,6 @@
 # =============================================================================
-# GitHub 제출용 — 실행·소스·제출문서만 추적
-# 로컬 Cursor/공정 문서는 디스크에 두되 push 하지 않음
+# GitHub 제출용 — 실행에 필요한 소스·카탈로그·픽스처만 추적
+# doc / test / 제출문서 는 로컬에만 둠
 # =============================================================================
 
 # Secrets (절대 push 금지)
@@ -23,6 +23,7 @@ output/**
 
 # Logs / temp
 *.log
+!fixtures/demo_session.log
 hs_err_pid*
 replay_pid*
 launch-err*.txt
@@ -43,6 +44,7 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+_fix_paths.py
 
 # Cursor / agent (로컬만)
 .cursor/
@@ -50,28 +52,16 @@ venv/
 agent-transcripts/
 
 # -----------------------------------------------------------------------------
-# 개발 공정 문서·레거시 (로컬 유지, GitHub 제외)
-# 런타임에 필요한 것만 예외로 추적: doc/guide/, resolve-runtime.bat
+# 로컬 전용 (GitHub 제외)
 # -----------------------------------------------------------------------------
+doc/
+test/
+제출문서/
 docs/
 scripts/
 tool/
 samples/
 config/
-
-doc/steps/
-doc/ux/
-doc/topology/
-doc/tools/**
-!doc/tools/resolve-runtime.bat
-!doc/tools/package-win.bat
-
-# doc 루트의 공정·초안 파일 (제출본은 제출문서/ 사용)
-doc/*.txt
-doc/*.xlsx
-doc/*.docx
-doc/GEMINI*
-doc/DEVDOC*
 
 # 강의 자료 PDF 등
 *.pdf

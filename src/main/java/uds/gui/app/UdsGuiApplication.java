@@ -1207,7 +1207,7 @@ public final class UdsGuiApplication extends Application {
   }
 
   /**
-   * Project / install root that contains the catalog (default {@code 기준정보/uds_system_catalog.xlsx}).
+   * Project / install root that contains the catalog (default {@code catalog/uds_system_catalog.xlsx}).
    * Order: {@code UDS_APP_HOME} (OS or .env) → class/jar location walk-up → {@code user.dir}.
    */
   static Path resolveAppRoot() {
@@ -1238,7 +1238,7 @@ public final class UdsGuiApplication extends Application {
 
   private static boolean looksLikeAppRoot(Path dir) {
     return dir != null
-        && Files.isRegularFile(dir.resolve("기준정보").resolve("uds_system_catalog.xlsx"));
+        && Files.isRegularFile(dir.resolve("catalog").resolve("uds_system_catalog.xlsx"));
   }
 
   private static Path detectRootFromCodeSource() {

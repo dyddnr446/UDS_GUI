@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Objects;
 import uds.catalog.model.SymptomDidMap;
 
-/** App-facing symptom mapping slice of the catalog (fixtures live under test/fixtures). */
+/** App-facing symptom mapping slice of the catalog (fixtures live under fixtures). */
 public final class ScenarioCatalog {
 
   private final List<SymptomDidMap> symptomDidMaps;

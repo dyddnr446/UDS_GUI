@@ -14,7 +14,7 @@ import uds.catalog.model.SubFunctionGuideMetadata;
 import uds.catalog.model.SymptomGuideMetadata;
 import uds.catalog.model.DidDefinition;
 
-/** Optional human/AI guide slice loaded from {@code doc/guide/uds_guide_catalog.xlsx}. */
+/** Optional human/AI guide slice loaded from {@code catalog/uds_guide_catalog.xlsx}. */
 public final class GuideCatalog {
 
   private final Map<String, ServiceGuideMetadata> servicesBySid;

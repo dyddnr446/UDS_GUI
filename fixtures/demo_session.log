@@ -1,0 +1,42 @@
+# reference UDS session — sudden-stop + security NRC storyboard (Interpreter / AI demo)
+# LineError 0건. Negative(NRC) 프레임은 Interpreter "오류 줄만" 필터에 표시됩니다.
+ts,direction,hex
+# --- DiagnosticSessionControl + SecurityAccess (wrong key then unlock) ---
+1.000,REQ,10 03
+1.010,RES,50 03 00 32 01 F4
+1.100,REQ,3E 80
+1.200,REQ,27 01
+1.210,RES,67 01 DE AD BE EF
+1.300,REQ,27 02 11 22 33 44
+1.310,RES,7F 27 35
+1.400,REQ,27 01
+1.410,RES,67 01 AA BB CC DD
+1.500,REQ,27 02 AA BB CC DD
+1.510,RES,67 02
+# --- ND sudden-stop reads (voltage sag / current / temps / fault / phase) ---
+2.000,REQ,22 10 01
+2.010,RES,62 10 01 01 C2
+2.100,REQ,22 10 02
+2.110,RES,62 10 02 FF FF FB 2E
+2.200,REQ,22 10 04
+2.210,RES,62 10 04 03 98
+2.300,REQ,22 10 05
+2.310,RES,62 10 05 02 26
+2.400,REQ,22 10 07
+2.410,RES,62 10 07 00 42
+2.500,REQ,22 11 01
+2.510,RES,62 11 01 13 88
+# --- OEM / DTC samples + reject ---
+3.000,REQ,22 F1 90
+3.010,RES,62 F1 90 57 58 59 31 32 33 34 35 36 37 38 39 41 42 43
+3.100,REQ,22 F1 99
+3.110,RES,7F 22 31
+3.200,REQ,19 02 FF
+3.210,RES,59 02 09 01 23 45 2F
+3.300,REQ,14 FF FF FF
+3.310,RES,54
+# --- VESC companion frames (ERPM zero / duty zero after stop) ---
+4.000,REQ,22 12 01
+4.010,RES,62 12 01 00 00 00 00
+4.100,REQ,22 10 08
+4.110,RES,62 10 08 00 00

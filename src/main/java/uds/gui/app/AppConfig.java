@@ -19,11 +19,11 @@ public final class AppConfig {
   /** {@code TRUE} → offline log/fixture test mode; {@code FALSE} → live CAN (future). */
   public static final String KEY_TEST = "TEST";
 
-  public static final String DEFAULT_CATALOG_REL = "기준정보/uds_system_catalog.xlsx";
-  public static final String DEFAULT_GUIDE_CATALOG_REL = "doc/guide/uds_guide_catalog.xlsx";
-  public static final String DEFAULT_FIXTURE_REL = "test/fixtures/uds_fixture_scenarios.xlsx";
-  /** Directory that holds demo_session.log (test/fixtures/). */
-  public static final String DEFAULT_SAMPLES_REL = "test/fixtures";
+  public static final String DEFAULT_CATALOG_REL = "catalog/uds_system_catalog.xlsx";
+  public static final String DEFAULT_GUIDE_CATALOG_REL = "catalog/uds_guide_catalog.xlsx";
+  public static final String DEFAULT_FIXTURE_REL = "fixtures/uds_fixture_scenarios.xlsx";
+  /** Directory that holds demo_session.log (fixtures/). */
+  public static final String DEFAULT_SAMPLES_REL = "fixtures";
   public static final String DEFAULT_DEMO_PASSWORD = "uds-demo-2026";
 
   private final Path appHome;

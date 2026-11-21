@@ -55,8 +55,8 @@ public final class CatalogLoader {
   private CatalogLoader() {}
 
   /**
-   * Load system workbook; guide path is auto-resolved under {@code doc/guide/} (then sibling)
-   * with soft-fail if missing.
+   * Load system workbook; guide path is auto-resolved (catalog sibling, then legacy {@code
+   * doc/guide/}) with soft-fail if missing.
    */
   public static UdsCatalog load(Path systemXlsxPath) throws IOException {
     return load(systemXlsxPath, resolveGuidePath(systemXlsxPath));
@@ -108,11 +108,19 @@ public final class CatalogLoader {
   }
 
   /**
-   * Prefer {@code <appRoot>/doc/guide/uds_guide_catalog.xlsx}, then sibling of the system file.
+   * Prefer sibling of the system file ({@code catalog/uds_guide_catalog.xlsx}), then legacy
+   * {@code doc/guide/} for local process trees.
    */
   static Path resolveGuidePath(Path systemXlsxPath) {
     Path abs = systemXlsxPath.toAbsolutePath().normalize();
-    Path walk = abs.getParent();
+    Path parent = abs.getParent();
+    if (parent != null) {
+      Path sibling = parent.resolve(DEFAULT_GUIDE_FILE);
+      if (Files.isRegularFile(sibling)) {
+        return sibling;
+      }
+    }
+    Path walk = parent;
     for (int i = 0; i < 8 && walk != null; i++) {
       Path underDocGuide = walk.resolve("doc").resolve("guide").resolve(DEFAULT_GUIDE_FILE);
       if (Files.isRegularFile(underDocGuide)) {
@@ -120,7 +128,6 @@ public final class CatalogLoader {
       }
       walk = walk.getParent();
     }
-    Path parent = abs.getParent();
     if (parent != null) {
       return parent.resolve(DEFAULT_GUIDE_FILE);
     }

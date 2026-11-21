@@ -128,5 +128,5 @@
     </plugins>
   </build>
 
-  <!-- Optional Windows app-image: doc/tools/package-win.bat -->
+  <!-- Optional Windows app-image: tools/package-win.bat -->
 </project>

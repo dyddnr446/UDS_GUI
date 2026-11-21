@@ -34,7 +34,7 @@ attrib +H "output\.session" >nul 2>&1
 > "%UDS_LAUNCH_LOG%" echo ===== UDS launch %DATE% %TIME% =====
 >> "%UDS_LAUNCH_LOG%" echo project=%UDS_PROJECT_ROOT%
 
-call "%~dp0doc\tools\resolve-runtime.bat"
+call "%~dp0tools\resolve-runtime.bat"
 if errorlevel 1 (
   echo See: %UDS_LAUNCH_LOG%
   pause
