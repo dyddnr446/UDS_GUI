@@ -30,7 +30,9 @@
 
 Interpreter, ReadData, WriteData, DTC는 AI API 키 없이 사용할 수 있습니다. AI Advisor에서 원클릭 진단이나 조언 생성을 실행하려면 외부 API에 연결할 수 있어야 합니다. 앱의 기본 설정은 Gemini와 `gemini-2.5-flash`입니다.
 
-본인 키를 사용할 때는 PowerShell에서 다음처럼 실행합니다. 환경 변수 값이 프로젝트의 `.env` 설정보다 우선합니다.
+프로젝트 루트에 이미 로컬 `.env`가 있으면 해당 파일을 사용합니다. 새로 받은 프로젝트라면 [`.env.example`](.env.example)을 `.env`로 복사합니다. `.env`의 `UDS_AI_API_KEY`에 본인 Gemini 키를 넣고 앱을 다시 실행합니다. Git은 로컬 `.env`를 추적하지 않습니다.
+
+PowerShell 환경 변수로 설정할 수도 있습니다. 환경 변수 값이 프로젝트의 `.env` 설정보다 우선합니다.
 
 ```powershell
 $env:UDS_AI_API_KEY = 'YOUR_GEMINI_API_KEY'
